@@ -80,6 +80,14 @@ def GetLogDir():
     print('Failed to create log dir - exiting...')
     sys.exit()
 
+def GetDumpDir():
+    sDumpRoot = FindOrCreateDir('D:/Dump')
+    if sDumpRoot:
+        return sDumpRoot
+    
+    print('Failed to create log dir - exiting...')
+    sys.exit()
+
 def VerifyJointDir(sPath, sDir):
     sDirPath = os.path.join(sPath, sDir)
     return VerifyDir(sDirPath)

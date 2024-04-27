@@ -8,28 +8,42 @@ Handle real images
 import torch
 import numpy as np
 import sys
+from os import path
 import matplotlib.pyplot as plt
-#import random
-from MyString import GetValue, SetValue, RemoveValue, SetType, AddDesc
+
+from PyString import GetValue, SetValue, RemoveValue, SetType, AddDesc
+from Utils import GetDumpDir
 
 class CImage:
     """
-    Class for holding an image
+    Class for holding a single image
+    Image may be read from file - short or float
     Image is held as 32-bit float
     """
     def __init__(self, nLines=0, nCols=0, pData=None, bInit=False, fName=None, i = 0):
         """
         Args:
-            imagesFileName: name of file to read - values are short - 512*512*nImages
+            nLines
+            nCols
+            pData
+            bInit
+            fName - name of file with binary data
+            i - index of image in volume
         """
         if nLines:
             self.nLines = nLines
-        else:
+        elif fName:
             self.nLines = GetValue(fName,'_height')
+        else:
+            self.nLines = 0
+            
         if nCols:
             self.nCols = nCols
-        else:
+        elif fName:
             self.nCols = GetValue(fName,'_width')
+        else:
+            self.nCols = 0
+            
         self.pData = pData
         self.fName = fName
         self.i = i
@@ -40,9 +54,9 @@ class CImage:
         self.nvPad = 0
         self.nhPad = 0
 
-    def clone(self):
-        cl = CImage(self.nLines, self.nCols, self.pData.clone())
-        return cl
+    #def clone(self):
+    #    cloned = CImage(self.nLines, self.nCols, self.pData.clone())
+    #    return cloned
     
     def IsPadded(self):
         return self.nvPad > 0 or self.nhPad > 0
@@ -75,14 +89,16 @@ class CImage:
         sName = SetType(sName, '.float.rimg')
         self.fName = sName
     
-    def WriteToFile(self, fileName):
-        npimage = self.pData.numpy()
-        fullName = 'f:/Data/CT1/' + fileName
-        self.fName = fullName
+    def WriteToFileInternal(self):
         self.SetNameForDump()
-        with open (fullName, 'wb') as file:
+        npimage = self.pData.numpy()
+        with open (self.fName, 'wb') as file:
             file.write(npimage.tobytes())
-        print('Image saved:', fullName)
+        print('Image saved:', self.fName)
+        
+    def WriteToFile(self, fileName):
+        self.fName = path.join(GetDumpDir(), fileName)
+        self.WriteToFileInternal()
 
     def WriteToFilePath(self, filePath = None, sDesc = None):
         if sDesc:
@@ -91,13 +107,9 @@ class CImage:
             print('<WriteToFilePath>')
         if not filePath is None:
              self.fName = filePath
-        self.SetNameForDump()
         if sDesc:
             self.fName = AddDesc(self.fName, sDesc)
-        npimage = self.pData.numpy()
-        with open (self.fName, 'wb') as file:
-            file.write(npimage.tobytes())
-        print('Image saved:', self.fName)
+        self.WriteToFileInternal()
         return self.fName
 
     def Show(self):
@@ -154,3 +166,8 @@ class CImage:
             print('pData', self.pData)
         print('---')
 
+def WriteImage(image, fPath):
+    npimage = image.numpy()
+    with open (fPath, 'wb') as file:
+        file.write(npimage.tobytes())
+    print('Image saved:', fPath)
