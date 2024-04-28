@@ -8,10 +8,8 @@ import numpy as np
 import torch
 import sys
 from Utils import FPrivateName
-from MyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
-from HandleImages import CImage
-from ProgressBar import ProgressBar
-from Externals import Polar2Cart
+from PyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
+from Image import CImage
 
 debug = 0
 
@@ -36,7 +34,7 @@ class CVolume():
     def __init__(self, name, fileName):
         """
         Args:
-            imagesFileName: name of file to read - values are short - 512*512*nImages
+            fileName: name of file to read - values may be short or float nImages
         """
         self.name = name;
         self.fName = fileName
@@ -161,58 +159,4 @@ class CVolume():
         return torch.equal(self.pImages, other.pImages)
 
 
-def TestSave(task,vol):
-    newName = task.GetTestImageNewDimName('TRY', vol.nLines, vol.nCols)
-    
-    with open (newName, 'wb') as file:
-        items = list(range(0, vol.nImages))
-        for item in ProgressBar(items, prefix = 'Saving:', suffix = 'Complete', length = 50):
-            image = vol.GetImage(item)
-            npimage = image.pData.numpy()
-            file.write(npimage.tobytes())
-    print('Image saved:', newName)
-    
-def TestExtractImage(task,vol):
-    iImage = task.iTest
-    image = vol.GetImageUnPad(iImage, 'SRC')
-    print('<vol.GetImageUnPad>', image.__dict__)
-    image.WriteToFilePath()
-    if task.bPolar2Cart:
-        Polar2Cart(image.fName)
-    image = vol.GetImagePadded(iImage, 'SRCPAD')
-    image.WriteToFilePath()
-    upImage = image.CreateUnPaddedCopy()
-    upImage.fName = upImage.fName.replace('SRCPAD', 'SRCUnPad')
-    upImage.WriteToFilePath()
-    
-def TestVolume(fName):
-    print('*** Test Volume ***')
-    vol = CVolume('test', fName)
-    vol.Print()
-    iImage = int(vol.nImages / 2)
-    im = vol.GetImage(iImage, 'Central Image')
-    im.Print()
-    im.Show()
-    if vol.IsPadded():
-        imUnPad = vol.GetImageUnPad(iImage,'Un Padded')
-        imUnPad.Print()
-        imUnPad.Show()
-    
-def main():
-    print('Test Volume')
-    #task = CTask()
-    #vol = CVolume(task.GetTestImageFullName())
-    #print(vol)
-    #print(vol.__dict__)
-    #TestSave(task,vol)
-    #TestExtractImage(task,vol)
-    #print(atoi('512')*2)
-    #print('mat', mat)
-    #CheckTaskTrainVolumes(task)
-    #CheckTaskTestVolumes(task)
-    TestVolume('D:\Data\Test\Volumes\SCANPLAN_7346_WideFOV_DFS\Offline_14_01_2021 - NoANR/cf483db6_0_Recon0.raw')
-    TestVolume('D:\Data\Test\Volumes\Data with padding/Scan314_Rings200_Polar_width1152_height544_hPad64_vPad16.float.dat')
-
-if __name__ == '__main__':
-    main()
 

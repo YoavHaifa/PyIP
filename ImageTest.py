@@ -60,7 +60,7 @@ def main():
     print('*** Test CImage Main')
     #testReadAndWrite()
     TestCImage()
-    #TestPatterns()
+    TestPatterns()
 
 if __name__ == '__main__':
     main()

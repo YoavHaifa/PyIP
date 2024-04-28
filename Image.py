@@ -96,7 +96,9 @@ class CImage:
             file.write(npimage.tobytes())
         print('Image saved:', self.fName)
         
-    def WriteToFile(self, fileName):
+    def WriteToFile(self, fileName=None):
+        if not fileName:
+            fileName = self.fName
         self.fName = path.join(GetDumpDir(), fileName)
         self.WriteToFileInternal()
 

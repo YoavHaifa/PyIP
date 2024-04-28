@@ -5,6 +5,7 @@ Created on Sun Aug 22 01:00:41 2021
 @author: yoavb
 """
 import os
+from os import path
 import sys
 import time
 
@@ -62,6 +63,10 @@ def GetDataRoot():
 
     print('Data dir was not found - exiting...')
     sys.exit()
+    
+def GetDataDir(sFor):
+    sRoot = GetDataRoot()
+    return path.join(sRoot, sFor)
 
 def GetTaskRoot(taskname):
     dataRoot = GetDataRoot()
