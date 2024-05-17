@@ -10,16 +10,15 @@ from os import path
 import sys
 import random
 import torch
-import time
 
 #import Config
 #from Task import CTask
 from Volume import CVolume
-#from VoxelEnv import CVoxelEnv
+from VoxelEnv import CVoxelEnv
 #from Rings import CRings
 #from PointsMap import CPointsMap
 #from Histogram import CGapHistogram
-from Utils import GetTaskRoot
+#from Utils import GetTaskRoot
 
 debug = 0
 debugSel = 0
@@ -51,7 +50,7 @@ class CMultiVolume():
 
         # Support for random selection of a voxel    
         self.maxSelectionsFromSameImage = 100
-        self.nSelectionFromCurrentImage = self.maxSelectionsFromSameImage
+        self.nSelectedFromCurrentImage = self.maxSelectionsFromSameImage
         self.iImage = 0
         self.iLines = 0;
         self.iCol = 0
@@ -66,7 +65,7 @@ class CMultiVolume():
     def LoadVolumes(self):
         self.input = []
         self.nVols = 0
-        self.nInLayers = 1 # number of layers loaded from the first volume
+        self.nInLayersFromFirstInput = 1
         self.target = None
         self.fList = []
 
@@ -77,18 +76,19 @@ class CMultiVolume():
         self.AddFilesFromList()
         self.Verify()
         self.vol0 = self.input[0]
+        self.vol0Images = self.vol0.pImages
         
         self.nImages = self.vol0.nImages
         self.nLines = self.vol0.nLines
         self.nCols = self.vol0.nCols
         print(f'<CMultiVolume> self.nImages {self.nImages}')
 
-    def SetNorm(self, nInLayers):
+    def SetNorm(self, nInLayersFromFirstInput):
         if debug:
             print('<SetNorm>')
         self.bNormalizeAll = False
         self.bNormalize = True
-        self.nInLayers = nInLayers
+        self.nInLayersFromFirstInput = nInLayersFromFirstInput
         
     def SetNorm0(self):
         if debug:
@@ -162,48 +162,35 @@ class CMultiVolume():
     def Verify(self):
         """
         Make sure that
-        1) There is both input and target
-        2) All input and target volumes re of the same dimensions
+        1) There is input
+        2) There is target (if required)
+        3) All input and target volumes are of the same dimensions
         Returns
         -------
-        None. Exit if any error
+            None. Exit if any error
 
         """
         if self.nVols < 1:
-            print('Multi Volume is empty', self.sDir)
+            print('<CMultiVolume::Verify> Multi Volume is empty', self.sDir)
             sys.exit()
         if self.bTargetRequired and self.target is None:
             print('<CMultiVolume::Verify> No target volume found', self.sDir)
             sys.exit()
-        firstVol = self.input[0]
         for inVol in self.input[1:]:
-            firstVol.AssertCompatible(inVol)
+            self.vol0.AssertCompatible(inVol)
         if self.target is not None:
-            firstVol.AssertCompatible(self.target)
+            self.vol0.AssertCompatible(self.target)
         
     def SelectImageLine(self):
-        if self.rings is not None:
-            bRing = random.randint(0,1)
-            if bRing:
-                t = self.rings.SelectRandom()
-                iCenterLine = t[1]
-                if iCenterLine >= self.nLinesOnEachSide and iCenterLine < self.nLines - self.nLinesOnEachSide:
-                    self.iImage = t[0]
-                    self.iLine = t[1]
-                    return
-        
-        if self.nSelectionFromCurrentImage >= self.maxSelectionsFromSameImage:
+        if self.nSelectedFromCurrentImage >= self.maxSelectionsFromSameImage:
             self.iImage = random.randint(self.nLayersOnEachSide, self.nImages-1-self.nLayersOnEachSide)
-            self.nSelectionFromCurrentImage = 1
+            self.nSelectedFromCurrentImage = 1
         else:
-            self.nSelectionFromCurrentImage += 1
+            self.nSelectedFromCurrentImage += 1
             
         if self.iAvoidLines == 2:
             iMaxLine = int((self.nLines - 1 - self.nLinesOnEachSide)/2)-1
             self.iLine = random.randint(int(self.nLinesOnEachSide/2), iMaxLine)*2+1
-            if self.bUseGap:
-                while not self.gapImageLineFlags[self.iImage, int(self.iLine/2)]:
-                    self.iLine = random.randint(int(self.nLinesOnEachSide/2), iMaxLine)*2+1
         else:
             self.iLine = random.randint(self.nLinesOnEachSide, self.nLines - 1 - self.nLinesOnEachSide)
             if self.iAvoidLines > 2:
@@ -214,32 +201,17 @@ class CMultiVolume():
         self.iFirstCol = self.iCol - self.nColsOnEachSide
         self.iFirstLine = self.iLine - self.nLinesOnEachSide
         self.iAfterLine = self.iLine + self.nLinesOnEachSide + 1
-        self.x0 = self.input[0].pImages[self.iImage, self.iFirstLine:self.iAfterLine,self.iFirstCol:self.iFirstCol+self.segLen]
+        self.x0 = self.vol0.pImages[self.iImage, self.iFirstLine:self.iAfterLine,self.iFirstCol:self.iFirstCol+self.segLen]
                 
     def SelectRandomVoxel(self):
-        gap = 0
-        vol = self.input[0].pImages
-        while gap < self.gapThreshold:
-            self.SelectImageLine()
-            self.nTried += 1
-            
-            if self.bUseGap:
-                lineFlags = self.gapFlags[self.iImage, int((self.iLine-1)/2)]
-                indices = (lineFlags > 0).nonzero(as_tuple=True)
-                #print(f'{indices=}')
-                #print(f'{len(indices[0])=}')
-                i = random.randint(0, len(indices[0])-1)
-                #print(f'{i=}')
-                self.iCol = indices[0][i]
-                #print(f'{self.iCol=}')
-                
-                #sys.exit()
-            else:
-                self.iCol = random.randint(self.nColsOnEachSide, self.nCols - 1 - self.nColsOnEachSide)
-            image = vol[self.iImage]
-            gap = abs(image[self.iLine-1,self.iCol]-image[self.iLine+1,self.iCol])
-            if debugSel:
-                print(f'<SelectRandomVoxel> [{self.iImage},{self.iLine},{self.iCol}] - gap {gap:.6f}')
+        self.SelectImageLine()
+        
+        self.iCol = random.randint(self.nColsOnEachSide, self.nCols - 1 - self.nColsOnEachSide)
+        vol0Images = self.vol0.pImages
+        image = vol0Images[self.iImage]
+        gap = abs(image[self.iLine-1,self.iCol]-image[self.iLine+1,self.iCol])
+        if debugSel:
+            print(f'<SelectRandomVoxel> [{self.iImage},{self.iLine},{self.iCol}] - gap {gap:.6f}')
         if debugSel:
             print('Bingo!')
         self.SetRange()
@@ -291,7 +263,7 @@ class CMultiVolume():
         if deb:
             print('<GetInputPerImage>', iImage)
             print(f'{x.shape=}')
-            print(f'{self.nLayersFrom1stInput} input layers from {self.input[0].fName}')
+            print(f'{self.nLayersFrom1stInput} input layers from {self.vol0.fName}')
 
 
         for iLayer in range(self.nLayersFrom1stInput):
@@ -299,7 +271,7 @@ class CMultiVolume():
             iPage = min(self.nImages-1, iPage)
             if deb:
                 print(f'{iLayer=}, {iPage=}')
-            x[iLayer] = self.input[0].pImages[iPage]
+            x[iLayer] = self.vol0Images[iPage]
 
         i = self.nLayersFrom1stInput
         if self.nInputChannels > i:
@@ -318,7 +290,7 @@ class CMultiVolume():
         x = torch.zeros([self.nInputChannels, 2*self.nLinesOnEachSide+1, self.segLen])
         if deb:
             print(f'<GetInputPerVoxel> [{self.iImage}, {self.iLine}, {self.iCol}]')
-            print(f'{self.input[0].pImages.shape=}')
+            print(f'{self.vol0Images.shape=}')
             print(f'{x.shape=}')
             print(f'{self.iFirstLine=}')
             print(f'{self.iAfterLine=}')
@@ -334,7 +306,7 @@ class CMultiVolume():
                 iPage = self.iImage - self.nLayersOnEachSide + iLayer
                 if deb:
                     print(f'{iPage=}')
-                x[i] = self.input[0].pImages[iPage, self.iFirstLine:self.iAfterLine,self.iFirstCol:self.iFirstCol+self.segLen]
+                x[i] = self.vol0Images[iPage, self.iFirstLine:self.iAfterLine,self.iFirstCol:self.iFirstCol+self.segLen]
                 i += 1
                 
         if self.nInputChannels > i:
@@ -350,17 +322,16 @@ class CMultiVolume():
             print(f'{self.bNormalize=}')
 
         y = self.target.pImages[self.iImage, self.iLine, self.iCol:self.iCol+1] # return tensor of length 1
-        yInterp = self.input[0].pImages[self.iImage, self.iLine, self.iCol:self.iCol+1] # return tensor of length 1
-        yPrev = self.input[0].pImages[self.iImage, self.iLine-1, self.iCol:self.iCol+1] # return tensor of length 1
-        yNext = self.input[0].pImages[self.iImage, self.iLine+1, self.iCol:self.iCol+1] # return tensor of length 1
+        yInterp = self.vol0Images[self.iImage, self.iLine, self.iCol:self.iCol+1] # return tensor of length 1
+        yPrev = self.vol0Images[self.iImage, self.iLine-1, self.iCol:self.iCol+1] # return tensor of length 1
+        yNext = self.vol0Images[self.iImage, self.iLine+1, self.iCol:self.iCol+1] # return tensor of length 1
         
-        ve = CVoxelEnv(self.iImage, self.iLine, self.iCol, x, y, yInterp, yPrev, yNext, self.bNormalize, self.bNormalizeAll, self.nInLayers)
+        ve = CVoxelEnv(self.iImage, self.iLine, self.iCol, x, y, yInterp, yPrev, yNext, self.bNormalize, self.bNormalizeAll, self.nInLayersFromFirstInput)
         if self.rings is not None:
             ve.bRing = self.rings.IsRing(self.iImage, self.iLine)
         return ve
     
     def GetItem(self):
-        self.nTried = 0
         if self.nPoints > 0:
             self.SelectByMap()
         else:

@@ -32,10 +32,9 @@ class CVoxelEnv():
         self.yVert = [self.yPrev, self.yInterp, self.yNext]
         self.loss = 1000
         self.nUsed = 0
-        self.bRing = False
         self.bNormalize = bNormalize
         self.bNormalizeAll = bNormalizeAll
-        self.bScale = false
+        self.bScale = False
         self.scaleFactor = 1
         
         # Subtruct average of environment
