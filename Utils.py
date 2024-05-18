@@ -40,7 +40,7 @@ def FindExistingDir(sDirName):
     for sd in sDrives:
         sTry = sd + sDirName[1:]
         if os.path.isdir(sTry):
-            print(f'Created dir: {sTry}')
+            print(f'Found dir: {sDirName} --> {sTry}')
             return sTry
     return False
 

@@ -10,7 +10,7 @@ from Utils import GetTaskRoot, VerifyDir, FindExistingDir, GetDataRoot, GetLogDi
 
 def TestFindExistingDir():
     print('*** Test FindExistingDir')
-    sTryList = ["k:\\tmp", 'r:/notExist', 'e:/data']
+    sTryList = ["k:\\tmp", 'r:/notExist', 'e:/data', 'E:/data', 'E:\\data']
     for sTry in sTryList:
         sFound = FindExistingDir(sTry)
         if (sFound):
@@ -25,6 +25,20 @@ def TestGetDirs():
     sLogDir = GetLogDir()
     print(f'GetLogDir() --> {sLogDir}')
 
+def TestVerifyDir():
+    print('*** Test VerifyDir')
+    sDirsList = ['d:/Tmp', f'd:/Tmp/TestDir_{random.randint(1,100)}']
+    sDirsList.append( f'f:/Tmp/XXX/TestDir_{random.randint(1,100)}')
+    sDirsList.append( f'f:/Tmp/TestDir<Illegal>_{random.randint(1,100)}')
+    for sDir in sDirsList:
+        try:
+            if VerifyDir(sDir):
+                print(f'{sDir} verified')
+        except FileNotFoundError:
+            print(f'Verify {sDir} failed with <FileNotFoundError>')
+        except:
+            print(f'Verify {sDir} failed but NOT <FileNotFoundError>')
+
 def TestGetTaskRoot():
     print('*** Test GetTaskRoot')
     sTasksList = ['same', 'NOT-A-TASK']
@@ -32,20 +46,12 @@ def TestGetTaskRoot():
         sDir = GetTaskRoot(sTask)
         print(f'Root dir for task <{sTask}>: {sDir}')
 
-def TestVerifyDir():
-    print('*** Test VerifyDir')
-    sDirsList = ['d:/Tmp', f'd:/Tmp/TestDir_{random.randint(1,100)}']
-    sDirsList.append( f'f:/Tmp/XXX/TestDir_{random.randint(1,100)}')
-    for sDir in sDirsList:
-        if VerifyDir(sDir):
-            print(f'{sDir} verified')
-
     
 def main():
     TestFindExistingDir()
     TestGetDirs()
-    TestGetTaskRoot()
     TestVerifyDir()
+    TestGetTaskRoot()
 
 
 if __name__ == '__main__':

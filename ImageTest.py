@@ -8,7 +8,10 @@ Created on Wed Apr 24 06:38:05 2024
 #import numpy as np
 #import torch
 
+from os import path
+
 from Image import CImage
+from Utils import GetDataRoot
 
 
 """
@@ -38,7 +41,9 @@ def testReadAndWrite():
 def TestCImage():
     print('*** Test CImage')
     image = CImage(512,512)
-    image.ReadImage('D:\Data\ImageTest/10688773_0_Recon0_HR_width512_height512_im157_SRC__1a.float.rimg')
+    sDataRoot = GetDataRoot()
+    sfImage = path.join(sDataRoot, 'ImageTest/10688773_0_Recon0_HR_width512_height512_im157_SRC__1a.float.rimg')
+    image.ReadImage(sfImage)
     image.WriteToFile('SavedFromCImage')
     image.Show()
     image2 = image.CreateCopy()
@@ -51,8 +56,10 @@ def TestCImage():
 def TestPatterns():
     image = CImage(4,10,bInit=True)
     image.SetConstant(10)
+    print('4*10 image with constant value 10')
     print(image.__dict__)
     image.AddConstantVertically(5, 3)
+    print('4*10 image after adding constant <3> from column <5>')
     print(image.__dict__)
     
 
