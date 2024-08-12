@@ -50,7 +50,7 @@ class CImage:
         if fName and (pData is None):
             self.ReadImage(fName)
         if bInit:
-            self.pData = torch.FloatTensor(nLines,nCols)
+            self.pData = torch.zeros((nLines,nCols))
         self.nvPad = 0
         self.nhPad = 0
 
@@ -70,12 +70,14 @@ class CImage:
         else:
             image = np.memmap(self.fName, dtype='int16', mode='r').__array__()
         
+        print(f'{image.ndim=}')
+        print(f'{image.size=}')
         if len(image) != self.nLines * self.nCols:
             print('<ReadImage> size error', fName)
             print(f'<ReadImage> len(image) {len(image)} != {self.nLines} self.nLines * {self.nCols} self.nCols')
             sys.exit()
         
-        image = torch.from_numpy(image)
+        image = torch.from_numpy(image.copy())
         image = image.view(self.nLines,self.nCols)
         if bSrcIsFloat:
             self.pData = image
