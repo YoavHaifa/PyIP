@@ -37,15 +37,15 @@ class CRadiusImage:
             #for x in range(512):
             #    radius = math.sqrt(yDiff2 + xDiff2[x])
             #    image.pData[y,x] = radius
-        
-        if bTiming:
-            end = time.monotonic()
-            elapsed = end - start
-            print(f"<CreateRadiusImage> Elapsed time: {elapsed:.3f} seconds")
             
+        #self.image.WriteToFile("RadiusImage")
+        self.image.Float2Short()
         self.image.WriteToFile("RadiusImage")
         
-        
+        if bTiming:
+            elapsed = time.monotonic() - start
+            print(f"<CRadiusImage::__init__(> Elapsed time: {elapsed:.3f} seconds")
+
         
 def main():
     print('*** Test Radius Image')

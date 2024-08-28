@@ -53,6 +53,7 @@ class CImage:
             self.pData = torch.zeros((nLines,nCols))
         self.nvPad = 0
         self.nhPad = 0
+        self.dtype = torch.float
 
     #def clone(self):
     #    cloned = CImage(self.nLines, self.nCols, self.pData.clone())
@@ -88,7 +89,10 @@ class CImage:
         sName = self.fName
         sName = SetValue(sName, '_width', self.nCols)
         sName = SetValue(sName, '_height', self.nLines)
-        sName = SetType(sName, '.float.rimg')
+        if self.dtype == torch.float:
+            sName = SetType(sName, '.float.rimg')
+        else:
+            sName = SetType(sName, '.short.rimg')
         self.fName = sName
     
     def WriteToFileInternal(self):
@@ -162,6 +166,10 @@ class CImage:
             
     def ZeroLastLines(self, iFrom):
         self.pData[iFrom:,:] = 0
+        
+    def Float2Short(self):
+        self.pData = self.pData.to(torch.int16)
+        self.dtype = torch.int16
             
     def Print(self):
         print(f'<CImage:Print> name: {self.fName}, i: {self.i}')

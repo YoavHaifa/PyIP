@@ -21,74 +21,9 @@ sVolumeFileNameNominal = 'd:\Dump\BP0_Output_width512_height512.float.dat'
 
 sImageFileName = 'Poly_Calib/Centered_250FOV_All_Slices_matrix512.short.TImage'
 
-threshMin = 850
-threshMax = 1150
-
 bTiming = False
 
-def CreateRadiusImage():
-    start = time.monotonic()
-    image = CImage(512,512,bInit=True)
-    centerX = 255.5
-    centerY = 255.5
-    
-    xVector = torch.arange(0,512)
-    xDiff = xVector - centerX
-    xDiff2 = torch.pow(xDiff,2)
-    
-    for y in range(512):
-        yDiff2 = (y-centerY)**2
-        sumVec = xDiff2 + yDiff2
-        image.pData[y] = torch.sqrt(sumVec)
-        
-        #for x in range(512):
-        #    radius = math.sqrt(yDiff2 + xDiff2[x])
-        #    image.pData[y,x] = radius
-    
-    if bTiming:
-        end = time.monotonic()
-        elapsed = end - start
-        print(f"<CreateRadiusImage> Elapsed time: {elapsed:.3f} seconds")
-        image.WriteToFile("RadiusImage_fast")
-    return image
 
-def Peel(mask):
-    # Peel Vertical
-    maskPre = mask[:,0:510,:]
-    maskPost = mask[:,2:512,:]
-    #print(f'{maskPre.shape=}')
-    #print(f'{maskPost.shape=}')
-    center = mask[:,1:511,:]
-    center = torch.where(maskPre > 0, center, 0)
-    center = torch.where(maskPost > 0, center, 0)
-    mask[:,1:511,:] = center
-    
-    #Peel Horizontal
-    maskUp = mask[:,:,0:510]
-    maskDown = mask[:,:,2:512]
-    #print(f'{maskPre.shape=}')
-    #print(f'{maskPost.shape=}')
-    center = mask[:,:,1:511]
-    center = torch.where(maskUp > 0, center, 0)
-    center = torch.where(maskDown > 0, center, 0)
-    mask[:,:,1:511] = center
-    return mask
-    
-
-def ComputeMask(volume):
-    volumeShifted = volume.pImages + 1000
-    mask = torch.where(volumeShifted >= threshMin, volumeShifted, 0)
-    mask = torch.where(mask <= threshMax, mask, 0)
-    volume.DumpSimilarVolume(mask, "maskAfterThreshold")
-    mask[:,0,:] = 0
-    mask[:,-1,:] = 0
-    mask[:,:,0] = 0
-    mask[:,:,-1] = 0
-    volume.DumpSimilarVolume(mask, "maskAfterClip")
-    mask = Peel(mask)
-    
-    print(f'{mask.shape=}')
-    return mask
 
 class CPolyScorer:
     """
