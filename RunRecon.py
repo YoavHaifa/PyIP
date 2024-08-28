@@ -7,9 +7,10 @@ Run Recon for Poly Calibration
 
 import subprocess
 
-verbose = 1
+verbose = 4
 
-sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
+sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
+#sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
 #sParams = '-exec OfflineRecon -ScanId 80c39ec3 -shotnum 0 -data "E:\Data\Poly_Calib\CenteredBig250\Scan_Plan" -transfer "d:\ReconTest\Recon\TransPointer.txt" -output d:\ReconTest\Output -tlog f:\Log\ReconUT\\MultiTest_Debug_timing_0042.csv -test xx -reconparam ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv'
 #sParams = '-exec OfflineRecon -ScanId 80c39ec3 -shotnum 0 -data E:\Data\Poly_Calib\CenteredBig250\Scan_Plan -output d:\PolyCalib -test xx -reconparam ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv'
 lParams = ['-exec', 'OfflineRecon', 

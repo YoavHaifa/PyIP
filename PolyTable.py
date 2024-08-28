@@ -122,7 +122,7 @@ class CPolyTables:
         iFirstCol = random.randint(0, nDetectors-1)
         iColAfter = random.randint(iFirstCol+1, nDetectors)
         delta = random.random() - 0.5
-        delta = delta / 3000
+        delta = delta / 1000
         tmpTable[0,iFirstRow:iRowAfter,iFirstCol:iColAfter] += delta
         SaveTable(tmpTable, sfName)
         #print(f'Try table {sfName}')
@@ -175,8 +175,6 @@ class CPolyTables:
 
     
 def TrainPolyCal(nTrials,nMaxBetter=1000000):
-    VerifyDir('d:\Dump')
-    VerifyDir('d:\PyLog')
     VerifyDir('d:\PolyCalib')
     VerifyDir('d:\PolyCalib\Better_XRT0')
     VerifyDir('d:\PolyCalib\Better_XRT1')
@@ -191,7 +189,10 @@ def TrainPolyCal(nTrials,nMaxBetter=1000000):
 
 def main():
     bNominal = False
-    nTrain = 200
+    nTrain = 50000
+    
+    VerifyDir('d:\Dump')
+    VerifyDir('d:\PyLog')
     
     if bNominal:
         print('*** Try Nominal')
@@ -199,7 +200,8 @@ def main():
         RunRecon()
         ScoreFlatness(bNominal=True)
     else:
-        TrainPolyCal(nTrain, nMaxBetter = 1)
+        TrainPolyCal(nTrain)
+        #TrainPolyCal(nTrain, nMaxBetter = 2)
 
 if __name__ == '__main__':
     main()

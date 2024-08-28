@@ -158,5 +158,12 @@ class CVolume():
     def IsEqual(self, other):
         return torch.equal(self.pImages, other.pImages)
 
+    def DumpSimilarVolume(self, pNewVolume, sNewName):
+        size = pNewVolume.shape;
+        sfName = f'd:/Dump/{sNewName}_width{size[2]}_height{size[1]}.float.rvol'
+        npVolume = pNewVolume.numpy()
+        with open (sfName, 'wb') as file:
+            file.write(npVolume.tobytes())
+        print(f'<DumpSimilarVolume> saved: {sfName}')
 
 

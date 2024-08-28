@@ -6,12 +6,12 @@ Measure image flatness - tool for building loss function
 @author: yoav.bar
 """
 
-from os import path
-import math
+#from os import path
+#import math
 import torch
 import time
 
-from Utils import GetDataRoot
+#from Utils import GetDataRoot
 from Image import CImage
 from Volume import CVolume
 
@@ -20,6 +20,9 @@ sVolumeFileNameAi = 'd:\Dump\BP_PolyAI_Output_width512_height512.float.dat'
 sVolumeFileNameNominal = 'd:\Dump\BP0_Output_width512_height512.float.dat'
 
 sImageFileName = 'Poly_Calib/Centered_250FOV_All_Slices_matrix512.short.TImage'
+
+threshMin = 850
+threshMax = 1150
 
 bTiming = False
 
@@ -49,27 +52,77 @@ def CreateRadiusImage():
         image.WriteToFile("RadiusImage_fast")
     return image
 
-"""
-def LoadVolume0():
-    sDataRoot = GetDataRoot()
-    sfName = path.join(sDataRoot, sImageFileName)
-    vol = CVolume('flatnessVol', sfName)
-    vol.Print()
-    iImage = int(vol.nImages / 2)
-    im = vol.GetImage(iImage, 'Central_Image')
-    #im.Print()
-    im.WriteToFile()
-    return im
-"""
+def Peel(mask):
+    # Peel Vertical
+    maskPre = mask[:,0:510,:]
+    maskPost = mask[:,2:512,:]
+    #print(f'{maskPre.shape=}')
+    #print(f'{maskPost.shape=}')
+    center = mask[:,1:511,:]
+    center = torch.where(maskPre > 0, center, 0)
+    center = torch.where(maskPost > 0, center, 0)
+    mask[:,1:511,:] = center
+    
+    #Peel Horizontal
+    maskUp = mask[:,:,0:510]
+    maskDown = mask[:,:,2:512]
+    #print(f'{maskPre.shape=}')
+    #print(f'{maskPost.shape=}')
+    center = mask[:,:,1:511]
+    center = torch.where(maskUp > 0, center, 0)
+    center = torch.where(maskDown > 0, center, 0)
+    mask[:,:,1:511] = center
+    return mask
+    
 
-def LoadVolume(sVolumeFileName):
-    vol = CVolume('flatnessVol', sVolumeFileName)
-    vol.Print()
-    iImage = int(vol.nImages / 2)
-    im = vol.GetImage(iImage, 'Central_Image')
-    #im.Print()
-    #im.WriteToFile()
-    return im
+def ComputeMask(volume):
+    volumeShifted = volume.pImages + 1000
+    mask = torch.where(volumeShifted >= threshMin, volumeShifted, 0)
+    mask = torch.where(mask <= threshMax, mask, 0)
+    volume.DumpSimilarVolume(mask, "maskAfterThreshold")
+    mask[:,0,:] = 0
+    mask[:,-1,:] = 0
+    mask[:,:,0] = 0
+    mask[:,:,-1] = 0
+    volume.DumpSimilarVolume(mask, "maskAfterClip")
+    mask = Peel(mask)
+    
+    print(f'{mask.shape=}')
+    return mask
+
+class CPolyScorer:
+    """
+    Compute scores for poly tables by:
+        1) Trying to improve flatness
+        2) Do not change CT Values
+    """
+    def __init__(self, sfInitialVolume):
+        """
+        Initializations:
+            Use radius image
+            Compute mask on initial volume by threshold and peel
+            Use smapled-set for evaluation
+            Use average of initial volume as reference
+            
+        After reconstruction with new tables:
+            Use sample to compute score
+            Return numeric score
+        """
+        
+        self.RadiusImage = CreateRadiusImage()
+        initialVolume = self.LoadVolume(sfInitialVolume)
+        self.maskVolume = ComputeMask(initialVolume)
+        initialVolume.DumpSimilarVolume(self.maskVolume, "PolyScorerMask")
+        
+
+    def LoadVolume(self, sVolumeFileName):
+        vol = CVolume('flatnessVol', sVolumeFileName)
+        vol.Print()
+        #iImage = int(vol.nImages / 2)
+        #im = vol.GetImage(iImage, 'Central_Image')
+        #im.Print()
+        #im.WriteToFile()
+        return vol
     
 def SortValues(phanthomImage,radiusImage):
     print('*** Sort Values')
@@ -103,6 +156,7 @@ def SortValues(phanthomImage,radiusImage):
     print(f'{std=}')
     return std
 
+"""
 def ScoreFlatness(bNominal=False):
     print('*** Measure Flatness')
     radiusImage = CreateRadiusImage()
@@ -116,11 +170,19 @@ def ScoreFlatness(bNominal=False):
    
     std = SortValues(phanthomImage,radiusImage)
     return std, phanthomImage
+    """
 
-def main():
+"""
+def mainOld():
     score, im = ScoreFlatness(bNominal=True)
     print(f'{score=}')
     im.WriteToFile()
+    """
+    
+def main():
+    print('*** Test Poly Scorer Class')
+    scorer = CPolyScorer(sVolumeFileNameNominal)
+    print(f'{scorer=}')
 
 if __name__ == '__main__':
     main()
