@@ -8,10 +8,16 @@ import os
 from os import path
 import sys
 import time
+import glob
 
 sDrives = "DEF"
 
 lossDisplayFactor = 1000000
+
+def TryRename(sFrom, sTo):
+    if path.exists(sFrom):
+        os.rename(sFrom, sTo)
+        print(f'Renamed {sFrom} to {sTo}')
 
 def FormatLoss(loss):
     ld = loss * lossDisplayFactor
@@ -118,6 +124,18 @@ def VerifyDir(sDir):
     print (f'Created Directory: {sDir}')
     return sDir
 
+def VerifyDirIsNew(sDir):
+    if os.path.isdir(sDir):
+        return False
+        
+    os.mkdir(sDir)
+    if not os.path.isdir(sDir):
+        print(f'Failed to create directory {sDir} - exiting...')
+        sys.exit()
+
+    print (f'Created Directory: {sDir}')
+    return True
+
 def AssertDir(sDir, sDesc):
     if not os.path.exists(sDir):
         print(f'{sDesc} {sDir} was not found - exiting...')
@@ -188,4 +206,10 @@ def GetAbortFileName():
     #    sfPauseNameX = configDir + 'PauseLearning_x.txt'
     #    os.rename(sfPauseName, sfPauseNameX)
     
-
+def DeleteFilesInDir(sDir):
+    print(f'<DeleteFilesInDir> {sDir}')
+    files = [f for f in os.listdir() if os.path.isfile(f)]
+    #files = glob.glob(sDir)
+    for f in files:
+        print(f'remove {f}')
+        os.remove(f)

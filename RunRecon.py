@@ -7,7 +7,9 @@ Run Recon for Poly Calibration
 
 import subprocess
 
-verbose = 4
+import Config
+
+verbose = 1
 
 sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
 #sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
@@ -30,12 +32,21 @@ def RunRecon():
     if verbose > 2:
         print(args)
     subprocess.run(args)
-    
+
+def RunOriginalRecon():
+    Config.SetPolyNominal()
+    RunRecon()
+
+def RunAiRecon():
+    Config.SetPolyByAi()
+    RunRecon()
 
 def main():
-    print('*** Run Recon by Host Simulator Command Line')
-    RunRecon();
-    print('Recon Finished')
+    print('*** Run Original Recon by Host Simulator Command Line')
+    RunOriginalRecon()
+    print('Nominal Recon Finished')
+    RunAiRecon()
+    print('AI Recon Finished')
  
 if __name__ == '__main__':
     main()

@@ -4,6 +4,8 @@ Created on Mon Feb  8 20:18:10 2021
 
 @author: yoavb
 """
+
+from os import path
 import numpy as np
 import torch
 import sys
@@ -12,6 +14,7 @@ from PyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
 from Image import CImage
 
 debug = 0
+verbosity = 5
 
 
 def Clip(minValue, value, maxValue):
@@ -36,6 +39,12 @@ class CVolume():
         Args:
             fileName: name of file to read - values may be short or float nImages
         """
+        if verbosity > 1:
+            if not path.exists(fileName):
+                print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
+                sys.exit()
+            print(f'<CVolume::__init__> {name} file: {fileName}')
+            
         self.name = name;
         self.fName = fileName
         self.fPrivateName = FPrivateName(fileName)
