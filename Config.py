@@ -19,7 +19,7 @@ sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:\PolyCalib'
 iExperiment = 4
-sExp = 'MultiSamples'
+sExp = 'MultiSamples300'
 sBaseDir = ''
 sLogDir = ''
 sVolDir = ''

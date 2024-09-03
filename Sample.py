@@ -16,8 +16,8 @@ from MaskVolume import CMaskVolume
 from RunRecon import RunOriginalRecon
 
 maxRadius = 260
-minPerRadius = 60
-maxPerRadius = 60
+minPerRadius = 300
+maxPerRadius = 300
 nImages = 280
 
 bTiming = True

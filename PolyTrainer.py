@@ -25,7 +25,7 @@ nDetectors = 688
 nRows = 192
 nLayers = 3
 deltaSave = 100
-deltaSample = 400
+deltaSample = 50
 
 BIG_SCORE = 1000000.0
 
@@ -156,7 +156,7 @@ class CPolyTrainer:
         
 def main():
     bShort = True
-    #bShort = False
+    bShort = False
     print('*** Train Poly Table')
     Config.OnInitRun()
     Config.Clean()
