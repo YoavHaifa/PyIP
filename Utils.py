@@ -208,8 +208,10 @@ def GetAbortFileName():
     
 def DeleteFilesInDir(sDir):
     print(f'<DeleteFilesInDir> {sDir}')
-    files = [f for f in os.listdir() if os.path.isfile(f)]
-    #files = glob.glob(sDir)
+    #files = [f for f in os.listdir(sDir) if os.path.isfile(f)]
+    files = glob.glob(sDir+'/*')
+    #print (files)
     for f in files:
-        print(f'remove {f}')
-        os.remove(f)
+        if os.path.isfile(f):
+            print(f'remove {f}')
+            os.remove(f)

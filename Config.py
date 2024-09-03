@@ -63,6 +63,11 @@ def OpenLog(sfName):
     f = open(sfFullName, 'w')
     return f
 
+def OpenLogGetName(sfName):
+    sfFullName = path.join(sLogDir, sfName)
+    f = open(sfFullName, 'w')
+    return f, sfFullName
+
 def TryRename(sFrom, sTo):
     #print('Try Rename')
     if path.exists(sFrom):

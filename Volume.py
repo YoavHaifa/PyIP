@@ -14,7 +14,7 @@ from PyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
 from Image import CImage
 
 debug = 0
-verbosity = 5
+verbosity = 1
 
 
 def Clip(minValue, value, maxValue):

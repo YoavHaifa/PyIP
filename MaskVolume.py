@@ -32,7 +32,7 @@ class CMaskVolume:
         print(f'<CMaskVolume::__init__> {mask.shape=}')
 
        
-    def Peel(mask):
+    def Peel(self, mask):
         # Peel Vertical
         maskPre = mask[:,0:510,:]
         maskPost = mask[:,2:512,:]

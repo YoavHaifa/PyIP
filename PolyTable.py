@@ -5,25 +5,24 @@ Control Poly Table
 @author: yoav.bar
 """
 
-import os
+#import os
 from os import path
 import torch
 import random
-import sys
+#import sys
 
-from RunRecon import RunRecon
+import Config
+#from RunRecon import RunRecon
 #from Flatness import ScoreFlatness
-from Utils import VerifyDir, TryRename
+#from Utils import VerifyDir, TryRename
 
 nDetectors = 688
 nRows = 192
 nLayers = 3
 nDetsPerReading = nDetectors * nRows
 
-sAiFlag = 'd:\Config\Poly\GetAiTable.txt'
-sAiFlagRemoved = 'd:\Config\Poly\GetAiTable_x.txt'
-
-sVolumeFileNameAi = 'd:\Dump\BP_PolyAI_Output_width512_height512.float.dat'
+#sAiFlag = 'd:\Config\Poly\GetAiTable.txt'
+#sAiFlagRemoved = 'd:\Config\Poly\GetAiTable_x.txt'
 
 sfNominalTab0 = 'D:\SpotlightScans\SCANPLAN_830\Calibrations\PolyCalibration_kVp120_FOV250_Collimator140_XRT0.bin'
 sfNominalTab1 = 'D:\SpotlightScans\SCANPLAN_830\Calibrations\PolyCalibration_kVp120_FOV250_Collimator140_XRT1.bin'
@@ -46,16 +45,16 @@ def PrepareEmptyTable():
     SaveTable(table, sfAiTab1)
     return table
 
-def SetPolyNominal():
-    TryRename(sAiFlag, sAiFlagRemoved)
+#def SetPolyNominal():
+#    TryRename(sAiFlag, sAiFlagRemoved)
 
-def SetPolyByAi():
-    TryRename(sAiFlagRemoved, sAiFlag)
+#def SetPolyByAi():
+#    TryRename(sAiFlagRemoved, sAiFlag)
     
 
-def RunNominalRecon():
-    SetPolyNominal()
-    RunRecon()
+#def RunNominalRecon():
+#    SetPolyNominal()
+#    RunRecon()
     
 class CPolyTables:
     """
@@ -120,11 +119,13 @@ class CPolyTables:
         return delta
             
     def SaveBetter(self, iXrt, iBetter):
-        sfName = f'd:\PolyCalib\Better_XRT{iXrt}\Poly_XRT{iXrt}_Better{iBetter}_width{nDetectors}_height{nRows}.float.bin'
+        sfName = f'Poly_XRT{iXrt}_Better{iBetter}_width{nDetectors}_height{nRows}.float.bin'
         if iXrt == 0:
+            sfName = path.join(Config.sTabDir0, sfName)
             self.table0 = self.tmpTable
             SaveTable(self.table0, sfName)
         else:
+            sfName = path.join(Config.sTabDir1, sfName)
             self.table1 = self.tmpTable           
             SaveTable(self.table1, sfName)
     
@@ -134,11 +135,11 @@ class CPolyTables:
         else:
             SaveTable(self.table1, sfAiTab1)
         
-
+"""
 def TrainPolyCal(nTrials,nMaxBetter=1000000):
-    VerifyDir('d:\PolyCalib')
-    VerifyDir('d:\PolyCalib\Better_XRT0')
-    VerifyDir('d:\PolyCalib\Better_XRT1')
+    #VerifyDir('d:\PolyCalib')
+    #VerifyDir('d:\PolyCalib\Better_XRT0')
+    #VerifyDir('d:\PolyCalib\Better_XRT1')
     SetPolyByAi()
     learner = CPolyTables()
     for i in range(nTrials):
@@ -147,15 +148,18 @@ def TrainPolyCal(nTrials,nMaxBetter=1000000):
             break
         
     learner.OnEndTraining()
+    """
 
 
 def main():
-    bNominal = False
-    nTrain = 50000
+    print('*** Nothing here')
+    #bNominal = False
+    #nTrain = 50000
     
-    VerifyDir('d:\Dump')
-    VerifyDir('d:\PyLog')
+    #VerifyDir('d:\Dump')
+    #VerifyDir('d:\PyLog')
     
+    """
     if bNominal:
         print('*** Try Nominal')
         SetPolyNominal()
@@ -164,6 +168,7 @@ def main():
     else:
         TrainPolyCal(nTrain)
         #TrainPolyCal(nTrain, nMaxBetter = 2)
+        """
 
 if __name__ == '__main__':
     main()
