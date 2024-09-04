@@ -18,14 +18,17 @@ sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:\PolyCalib'
-iExperiment = 4
+iExperiment = 5
 sExp = 'MultiSamples300'
+sExp = 'try'
 sBaseDir = ''
 sLogDir = ''
 sVolDir = ''
 sTabDir0 = ''
 sTabDir1 = ''
 bInitialized = False
+
+verbosity = 5
 
 def OnInitRun():
     global sBaseDir, sLogDir, sVolDir, sTabDir0, sTabDir1
@@ -59,8 +62,12 @@ def LogFileName(sfName):
     return path.join(sLogDir, sfName)
     
 def OpenLog(sfName):
+    if len(sLogDir) < 1:
+        OnInitRun()
     sfFullName = path.join(sLogDir, sfName)
     f = open(sfFullName, 'w')
+    if verbosity > 1:
+        print(f'<OpenLog> {sfFullName}')
     return f
 
 def OpenLogGetName(sfName):
