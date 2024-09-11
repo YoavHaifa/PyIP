@@ -25,6 +25,7 @@ lParams = ['-exec', 'OfflineRecon',
            'ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv']
 
 def RunRecon():
+    Config.Start('Recon')
     #args = [sHSProg, sParams]
     args = [sHSProg]
     args.extend(lParams)
@@ -32,6 +33,7 @@ def RunRecon():
     if verbose > 2:
         print(args)
     subprocess.run(args)
+    Config.End('Recon')
 
 def RunOriginalRecon():
     Config.SetPolyNominal()

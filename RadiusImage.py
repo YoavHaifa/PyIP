@@ -11,7 +11,6 @@ import torch
 
 import Config
 from Image import CImage
-from Utils import WriteMatrixToFile
 
 
 
@@ -90,8 +89,8 @@ class CRadiusImage:
                 countPerRad[radius] += 1
                 
         if debug:
-            WriteMatrixToFile(self.rad2PixLine, 'rad2PixLine', 'short')
-            WriteMatrixToFile(self.rad2PixCol, 'rad2PixCol', 'short')
+            Config.WriteMatrixToFile(self.rad2PixLine, 'rad2PixLine', 'short')
+            Config.WriteMatrixToFile(self.rad2PixCol, 'rad2PixCol', 'short')
                 
 
 def main():

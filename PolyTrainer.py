@@ -20,6 +20,7 @@ from PolyScorer import CPolyScorer
 from RunRecon import RunAiRecon, RunOriginalRecon
 from PolyTable import CPolyTables
 from Utils import GetAbortFileName
+from Log import CLog
 
 nDetectors = 688
 nRows = 192
@@ -35,6 +36,7 @@ class CPolyTrainer:
     def __init__(self):
         """
         """
+        Config.gLog = CLog('Trainer')
         self.originalScore = BIG_SCORE
         self.firstScore = BIG_SCORE
         self.bestScore = BIG_SCORE
@@ -65,8 +67,8 @@ class CPolyTrainer:
         f, sfName = Config.OpenLogGetName(sfName)
         #f.write('xrt, fRow, lRow, fCol, lCol, delta, score, diff\n')
         #f.write(f'01, 0, {nRows}, 0, {nDetectors}, 0, {self.bestScore}, 0\n')
-        f.write('xrt, sample, delta, std, average, score, diff\n')
-        f.write(f'0_1, 0, 0, {self.scorer.std}, {self.scorer.average}, {self.bestScore}, 0\n')
+        f.write('xrt, sample, delta, flatness, average, score, diff\n')
+        f.write(f'0_1, 0, 0, {self.scorer.flatnessScore}, {self.scorer.average}, {self.bestScore}, 0\n')
         f.close()
         return sfName
                 
@@ -92,18 +94,20 @@ class CPolyTrainer:
         print(f'<CreateNewSampe> {self.iSample} best {prevBest} --> {self.bestScore}')
 
     def TryStep(self):
+        Config.Start('TryStep')
         self.iTry += 1 
         print('<TryStep> ', self.iTry)
         iTable = random.randint(0, 1)
         delta = self.tableGenerator.TryTableStep(iTable)
         RunAiRecon()
-        score = self.scorer.Score(Config.sfVolumeAi, self.sample).item()
+        score = self.scorer.Score(Config.sfVolumeAi, self.sample)
         diff = self.bestScore - score
         fAll = open(self.sfAllCsv,'a')
         #fAll.write(f'{iTable}, {iFirstRow}, {iRowAfter}, {iFirstCol}, {iColAfter}, {delta}, {score}, {diff}')
-        fAll.write(f'{iTable}, {self.iSample}, {delta}, {self.scorer.std}, {self.scorer.average}, {score}, {diff}')
+        fAll.write(f'{iTable}, {self.iSample}, {delta}, {self.scorer.flatnessScore}, {self.scorer.average}, {score}, {diff}')
 
         if score < self.bestScore:
+            Config.Start('OnBetter')
             if iTable == 0:
                 self.nBetter0 += 1
                 self.tableGenerator.SaveBetter(0, self.nBetter0)
@@ -119,7 +123,9 @@ class CPolyTrainer:
             fAll.write(', *\n')
             fImp = open(self.sfImproveCsv, 'a')
             #fImp.write(f'{iTable}, {iFirstRow}, {iRowAfter}, {iFirstCol}, {iColAfter}, {delta}, {score}, {diff}\n')
-            fImp.write(f'{iTable}, {self.iSample}, {delta}, {self.scorer.std}, {self.scorer.average}, {score}, {diff}\n')
+            sScore = f'{iTable}, {self.iSample}, {delta}, {self.scorer.flatnessScore}, {self.scorer.average}, {score}, {diff}'
+            Config.Log(sScore)
+            fImp.write(f'{sScore}\n')
             fImp.close()
             
             if self.nBetter % deltaSample == 0:
@@ -129,6 +135,8 @@ class CPolyTrainer:
                 #sfSave = f'd:\Dump\BP_PolyAI_Output_width512_height512_save{self.nBetter}.float.dat'
                 #TryRename(sVolumeFileNameAi, sfSave)
             self.nNotBetterConsecutive = 0
+            Config.End('OnBetter')
+            Config.End('TryStep')
             return True
         
         fAll.write('\n')
@@ -138,9 +146,11 @@ class CPolyTrainer:
         self.tableGenerator.RestoreTable(iTable)
         print(f'--- <<< New table NOT better {self.nNotBetterConsecutive}')
         #print(f'--- <<< New table NOT better {score=} >= {self.bestScore} ({diff=})')
+        Config.End('TryStep')
         return False
     
     def Train(self, nTrials):
+        Config.Start('Train')
         for i in range(nTrials):
             self.TryStep()
             if self.nBetter >= self.nMaxBetter:
@@ -150,6 +160,7 @@ class CPolyTrainer:
                 break
             
         self.tableGenerator.OnEndTraining()
+        Config.End('Train')
 
      
 
@@ -166,7 +177,7 @@ def main():
     trainer.RunFlatTable()
     
     if bShort:
-        trainer.Train(20)
+        trainer.Train(5)
     else:
         trainer.Train(20000)
 

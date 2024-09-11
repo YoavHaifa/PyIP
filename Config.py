@@ -18,8 +18,8 @@ sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:\PolyCalib'
-iExperiment = 5
-sExp = 'MultiSamples300'
+iExperiment = 9
+sExp = 'DiffScore'
 sExp = 'try'
 sBaseDir = ''
 sLogDir = ''
@@ -27,8 +27,9 @@ sVolDir = ''
 sTabDir0 = ''
 sTabDir1 = ''
 bInitialized = False
+gLog = None
 
-verbosity = 5
+verbosity = 1
 
 def OnInitRun():
     global sBaseDir, sLogDir, sVolDir, sTabDir0, sTabDir1
@@ -59,6 +60,9 @@ def OnInitRun():
 
     
 def LogFileName(sfName):
+    _, sExt = os.path.splitext(sfName)
+    if sExt not in ['.log', '.txt', '.csv']:
+        sfName = sfName + '.log'
     return path.join(sLogDir, sfName)
     
 def OpenLog(sfName):
@@ -104,6 +108,30 @@ def Clean():
     DeleteFilesInDir(sVolDir)
     DeleteFilesInDir(sLogDir)
 
+
+def WriteMatrixToFile(matrix, sfName, sfType='float'):
+    nCols = matrix.shape[-1]
+    nLines = matrix.shape[-2]
+    sfName = sfName + f'_width{nCols}_height{nLines}.{sfType}.rmat'
+    sfFullName = path.join(sLogDir, sfName)
+    
+    npmat = matrix.numpy()
+    with open (sfFullName, 'wb') as file:
+        file.write(npmat.tobytes())
+    print('Matrix saved:', sfFullName)
+
+def Log(s):
+    if gLog:
+        gLog.Log(s)
+
+def Start(sSection, sComment=''):
+    if gLog:
+        gLog.Start(sSection, sComment)
+
+def End(sSection, sComment=''):
+    if gLog:
+        gLog.End(sSection, sComment)
+    
 def main():
     OnInitRun()
     OpenLog('Try.log')

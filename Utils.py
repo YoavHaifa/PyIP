@@ -11,8 +11,6 @@ import time
 import glob
 import torch
 
-import Config
-
 sDrives = "DEF"
 
 lossDisplayFactor = 1000000
@@ -219,17 +217,6 @@ def DeleteFilesInDir(sDir):
             print(f'remove {f}')
             os.remove(f)
 
-def WriteMatrixToFile(matrix, sfName, sfType='float'):
-    nCols = matrix.shape[-1]
-    nLines = matrix.shape[-2]
-    sfName = sfName + f'_width{nCols}_height{nLines}.{sfType}.rmat'
-    sfFullName = path.join(Config.sLogDir, sfName)
-    
-    npmat = matrix.numpy()
-    with open (sfFullName, 'wb') as file:
-        file.write(npmat.tobytes())
-    print('Matrix saved:', sfFullName)
-
 def TestWriteMatrix():
     print('*** Test Write Matrix')
     nImages = 10
@@ -241,7 +228,7 @@ def TestWriteMatrix():
     
 def main():
     print('*** Test Utils')
-    Config.OnInitRun()
+    #Config.OnInitRun()
     TestWriteMatrix()
 
 if __name__ == '__main__':
