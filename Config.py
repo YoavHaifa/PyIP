@@ -11,52 +11,65 @@ import sys
 
 from Utils import VerifyJointDir, VerifyDir, VerifyDirIsNew, DeleteFilesInDir
 
-sAiFlag = 'd:\Config\Poly\GetAiTable.txt'
-sAiFlagRemoved = 'd:\Config\Poly\GetAiTable_x.txt'
+sAiFlag = 'd:/Config/Poly/GetAiTable.txt'
+sAiFlagRemoved = 'd:/Config/Poly/GetAiTable_x.txt'
 
 sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
-sfRoot = 'd:\PolyCalib'
-iExperiment = 9
-sExp = 'DiffScore'
-sExp = 'try'
+sfRoot = 'd:/PolyCalib'
+iExperiment = 11
+sExp = 'SmallPatches'
+#sExp = 'try'
 sBaseDir = ''
 sLogDir = ''
 sVolDir = ''
 sTabDir0 = ''
 sTabDir1 = ''
+sBestTabsDir = ''
 bInitialized = False
 gLog = None
 
 verbosity = 1
 
-def OnInitRun():
+def OnInitRun(sSpecialVolDir=None):
     global sBaseDir, sLogDir, sVolDir, sTabDir0, sTabDir1
     global sfVolumeNominal, sfVolumeAi, bInitialized
+    global sBestTabsDir
     
     if bInitialized:
         print('Attempt to call <OnInitRun> twice. Exiting...')
         sys.exit()
     bInitialized = True
     
+    
     VerifyDir(sfRoot)
-    VerifyDir('d:\Config')
-    if VerifyDirIsNew('d:\Config\Poly'):
+    VerifyDir('d:/Config')
+    if VerifyDirIsNew('d:/Config/Poly'):
         with open(sAiFlag, 'w') as file:
-            file.write('Content is not important\n')
+            file.write('Content is not important/n')
         
     sDirName = f'Exp{iExperiment}_{sExp}'
     sBaseDir = VerifyJointDir(sfRoot, sDirName)
     
     sLogDir = VerifyJointDir(sBaseDir, 'Log')
-    sVolDir = VerifyJointDir(sBaseDir, 'Vol')
+    
+    if sSpecialVolDir:
+        if path.isdir(sSpecialVolDir):
+            sVolDir = sSpecialVolDir
+            print('Using special Volumes Dir: ', sSpecialVolDir)
+        else:
+            print('Missing special Volumes Dir: ', sSpecialVolDir)
+            sys.exit()
+    else:
+        sVolDir = VerifyJointDir(sBaseDir, 'Vol')
     
     sfVolumeNominal = path.join(sVolDir, sfVolumeNominal)
     sfVolumeAi = path.join(sVolDir, sfVolumeAi)
     
     sTabDir0 = VerifyJointDir(sBaseDir, 'Tab0')
     sTabDir1 = VerifyJointDir(sBaseDir, 'Tab1')
+    sBestTabsDir = VerifyJointDir(sBaseDir, 'BestTabs')
 
     
 def LogFileName(sfName):
@@ -68,14 +81,14 @@ def LogFileName(sfName):
 def OpenLog(sfName):
     if len(sLogDir) < 1:
         OnInitRun()
-    sfFullName = path.join(sLogDir, sfName)
+    sfFullName = LogFileName(sfName)
     f = open(sfFullName, 'w')
     if verbosity > 1:
         print(f'<OpenLog> {sfFullName}')
     return f
 
 def OpenLogGetName(sfName):
-    sfFullName = path.join(sLogDir, sfName)
+    sfFullName = LogFileName(sfName)
     f = open(sfFullName, 'w')
     return f, sfFullName
 
@@ -86,7 +99,7 @@ def TryRename(sFrom, sTo):
         print(f'Renamed {sFrom} to {sTo}')
         
 def SetBpDumpFile(sfName):
-    with open('d:\Config\Poly\BPDumpFileName.txt', 'w') as file:
+    with open('d:/Config/Poly/BPDumpFileName.txt', 'w') as file:
         file.write(f'{sfName}\n')
 
 def SetPolyNominal():

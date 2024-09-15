@@ -18,8 +18,8 @@ sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
 lParams = ['-exec', 'OfflineRecon', 
            '-ScanId', '80c39ec3', 
            '-shotnum', '0', 
-           '-data', 'D:\SpotlightScans', 
-           '-output', 'd:\PolyCalib\ex', 
+           '-data', 'D:/SpotlightScans', 
+           '-output', 'd:/PolyCalib/ex', 
            '-test', 'xx', 
            '-reconparam', 
            'ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv']

@@ -16,8 +16,11 @@ from MaskVolume import CMaskVolume
 from Sample import CSample
 
 maxRadius = 260
+maxImages = 1000
 
 verbosity = 1
+
+sSavedVolume = 'BP_PolyAI_Output_width512_height512_save4000.float.rvol'
 
 class CPolyScorer:
     """
@@ -44,21 +47,6 @@ class CPolyScorer:
             #print(f'{samplesCols[iRad]=}')
             fastGet = image[samplesLines[iRad,0:nValidPerRad],samplesCols[iRad,0:nValidPerRad]]
             fastAvg = fastGet.mean()
-            
-            """
-            valSum = 0
-            for i in range(nValidPerRad):
-                iLine = samplesLines[iRad,i]
-                iCol = samplesCols[iRad,i]
-                valSum += image[iLine, iCol]
-            avg = valSum / nValidPerRad
-            
-            if avg != fastAvg:
-                diff = abs(avg - fastAvg)
-                if diff > 0.001:
-                    print(f'{avg=:.9f} != {fastAvg=:.9f}')
-                    sys.exit()
-             """
            
             avgs[iRad] = fastAvg
             nRadiuses += 1
@@ -73,19 +61,8 @@ class CPolyScorer:
         self.radsPerImage[self.nImagesScored] = nRadiuses
         
         #Compute Range
-        self.RangePerImage[self.nImagesScored] = relevant.max() - relevant.min()
-        
-        """
-        #Compute moment
-        nMoment = nRadiuses - 5
-        if nMoment > 0:
-            base = relevant[2:5].mean()
-            sumMoment = 0
-            for i in range(nMoment):
-                iInVec = i + 5
-                sumMoment += abs(relevant[iInVec] - base) * iInVec
-            self.momentPerImage[self.nImagesScored] = (sumMoment / nMoment) * 0.01
-            """
+        self.rangePerImage[self.nImagesScored] = relevant.max() - relevant.min()
+        self.averagePerImage[self.nImagesScored] = relevant.mean()
             
         self.nImagesScored += 1
 
@@ -96,16 +73,19 @@ class CPolyScorer:
         self.nImagesScored = 0
         self.stdPerImage = torch.zeros(self.nImages)
         self.radsPerImage = torch.zeros(self.nImages)
-        self.RangePerImage = torch.zeros(self.nImages)
+        self.rangePerImage = torch.zeros(self.nImages)
+        self.averagePerImage = torch.zeros(self.nImages)
+        self.deltaAveragePerImage = torch.zeros(self.nImages) # Relative to original Volume Average
 
-        for iIm in range(self.nImages):
+        nToScore = min(maxImages, self.nImages)
+        for iIm in range(nToScore):
             #print(f'{iIm=}')
             self.ScoreImage(vol.pImages[iIm], sample.samplesLines[iIm], sample.samplesCols[iIm], sample.nValidSamples[iIm])
             
         relevant = self.stdPerImage[0:self.nImagesScored]
         self.flatnessScore = relevant.mean()
-        relevantRange = self.RangePerImage[0:self.nImagesScored]
-        self.rangeScore = relevantRange.mean()
+        relevantRange = self.rangePerImage[0:self.nImagesScored]
+        self.rangeScore = relevantRange.mean() / 10
         Config.End('ScoreAllImages')
         #stdSqr = torch.square(relevant)
         #self.flatnessScore = stdSqr.mean()
@@ -113,10 +93,13 @@ class CPolyScorer:
     def ComputeAverage(self):
         if self.nSummed > 0:
             self.average = self.sum / self.nSummed
+            #print(f'Average {self.average} = sum {self.sum} / n {self.nSummed}')
         else:
             self.average = 0
 
         self.averageDiff = 0
+        self.averageScore = 0
+        
         if self.originalAverage == 0:
             self.originalAverage = self.average
             print(f'<Score> Original Average is {self.originalAverage}')
@@ -125,10 +108,17 @@ class CPolyScorer:
             print(f'<Score> Flat Average is {self.flatAverage}')
         else:
             self.averageDiff = self.flatAverage - self.average
+
+        if self.flatAverage != 0:
+            for i in range(self.nImagesScored):
+                self.deltaAveragePerImage[i] = abs(self.averagePerImage[i] - self.flatAverage)
+        relevanDelatAvg = self.deltaAveragePerImage[0:self.nImagesScored]
+        self.averageScore = relevanDelatAvg.mean() * 5
+
         
     def Score(self, sfVolume, sample):
         Config.Start('Score')
-        if verbosity > 1 or self.count < 5:
+        if verbosity > 1 or self.count < 3:
             print('<CPolyScorer::Score> ', sfVolume)
         vol = CVolume('scoredVol', sfVolume)
         self.radIm = sample.radIm
@@ -139,66 +129,39 @@ class CPolyScorer:
         
         self.ComputeAverage()
         
-        self.score = self.flatnessScore + self.momentScore + (self.averageDiff / 2) ** 2
+        self.score = self.flatnessScore + self.rangeScore + self.averageScore
         self.score = self.score.item()
             
         self.count += 1
         if verbosity > 1:
-            print(f'<CPolyScorer::Score> {self.count} STD {self.flatnessScore}, Mom {self.momentScore}, Average Diff {self.averageDiff} ==> Score {self.score}')
+            print(f'<CPolyScorer::Score> {self.count} STD {self.flatnessScore}, range {self.rangeScore}, Avg {self.averageScore} ==> Score {self.score}')
         Config.End('Score')
         return self.score
-            
-        
-
-    """
-    def Score(self, sfVolume, sample):
-        if verbosity > 1:
-            print('<CPolyScorer::Score> ', sfVolume)
-        self.sums = torch.zeros(maxRadius)
-        self.counts = torch.zeros(maxRadius)
-        vol = CVolume('scoredVol', sfVolume)
-        
-        # Get all samples
-        for i in range(sample.n):
-            iRadius = sample.radiuses[i]
-            value = vol.pImages[sample.images[i],sample.lines[i],sample.cols[i]]
-            self.sums[iRadius] += value
-            self.counts[iRadius] += 1
-        
-        onesVector = torch.ones(maxRadius)
-        self.counts = torch.max(self.counts,onesVector)
-        self.averages = self.sums.div(self.counts)
-        
-        # Log
-        
-        self.average = self.averages[5:245].mean()
-        
-        relevant = self.averages[0:254]
-        self.std = torch.std(relevant).item()
-        self.averageDiff = 0
-        if self.originalAverage == 0:
-            self.originalAverage = self.average
-            print(f'<Score> Original Average is {self.originalAverage}')
-        elif self.flatAverage == 0:
-            self.flatAverage = self.average
-            print(f'<Score> Flat Average is {self.flatAverage}')
-        else:
-            self.averageDiff = self.flatAverage - self.average
-        self.score = self.std + (self.averageDiff / 10) ** 2
-            
-        self.count += 1
-        if verbosity > 1:
-            print(f'<CPolyScorer::Score> {self.count} STD {self.std}, Average Diff {self.averageDiff} ==> Score {self.score}')
-        return self.score
-    """
-        
     
+    def WriteTitle(self, f):
+        f.write(', std, range, avg, score')
+    
+    def WriteScore(self, f):
+        sScore = f', {self.flatnessScore}, {self.rangeScore}, {self.averageScore}, {self.score}'
+        f.write(sScore)
+        return sScore
+
     def Log(self):
-        sfName = f'd:/Pylog/ScorerValuePerImage_{self.count}.csv'
-        f = open(sfName,'w')
-        f.write("image, radiuses, std\n")
+        f, sfName = Config.OpenLogGetName(f'ScorerValuePerImage_{self.count}.csv')
+        f.write("image, radiuses, std, range, average, delta avg\n")
         for i in range(self.nImagesScored):
-            f.write(f"{i}, {self.radsPerImage[i]}, {self.stdPerImage[i]}\n")
+            f.write(f'{i}, {self.radsPerImage[i]}')
+            f.write(f', {self.stdPerImage[i]}')
+            f.write(f', {self.rangePerImage[i]}')
+            f.write(f', {self.averagePerImage[i]}')
+            f.write(f', {self.deltaAveragePerImage[i]}')
+            f.write('\n')
+            
+        f.write(f',,,,,Original Avg, {self.originalAverage}\n')
+        f.write(f',,,,,Flat Avg, {self.flatAverage}\n')
+        f.write(f',,,,,Last Avg, {self.average}\n')
+        f.write(f',,,,,std, {self.flatnessScore}, range, {self.rangeScore}, Avg, {self.averageScore}\n')
+        f.write(f',,,,,score, {self.score}\n')
         f.close()
         print(f'File written: {sfName}')
         
@@ -207,20 +170,27 @@ def main():
     global verbosity
     print('*** Test Poly Scorer')
     verbosity = 5
-    Config.OnInitRun()
+    Config.OnInitRun(sSpecialVolDir='D:\PolyCalib\Volumns')
     radIm = CRadiusImage()
     vol = CVolume('nominalVol', Config.sfVolumeNominal)
     maskVol = CMaskVolume(vol)
     sample = CSample(maskVol, radIm)
     scorer = CPolyScorer()
-    start = time.monotonic()
+    
     score = scorer.Score(Config.sfVolumeNominal, sample)
+    scorer.Log()
+    print(f'{score=}')
+    
+    score = scorer.Score(Config.sfVolumeAi, sample)
+    scorer.Log()
+    print(f'{score=}')
+    
+    start = time.monotonic()
+    score = scorer.Score(sSavedVolume, sample)
+    scorer.Log()
     print(f'{score=}')
     elapsed = time.monotonic() - start
-    print(f"<CSample::AddSamples(> Elapsed time: {elapsed:.3f} seconds")
-    scorer.Log()
-    score = scorer.Score(Config.sfVolumeAi, sample)
-    print(f'{score=}')
+    print(f"<scorer.Score> Elapsed time: {elapsed:.3f} seconds")
     
      
 

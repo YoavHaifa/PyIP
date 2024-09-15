@@ -9,6 +9,8 @@ from os import path
 import numpy as np
 import torch
 import sys
+
+import Config
 from Utils import FPrivateName
 from PyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
 from Image import CImage
@@ -41,8 +43,10 @@ class CVolume():
         """
         if verbosity > 1:
             if not path.exists(fileName):
-                print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
-                sys.exit()
+                fileName = path.join(Config.sVolDir, fileName)
+                if not path.exists(fileName):
+                    print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
+                    sys.exit()
             print(f'<CVolume::__init__> {name} file: {fileName}')
             
         self.name = name;
@@ -68,7 +72,7 @@ class CVolume():
         self.i = 0
 
     def ReadImages(self):
-        if debug:
+        if verbosity > 1:
             print(f'<CVolume::ReadImages> Reading volume {self.fName}...')
         bSrcIsFloat = self.fName.find('.float.') > 0
         if bSrcIsFloat:

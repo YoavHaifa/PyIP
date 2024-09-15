@@ -22,7 +22,7 @@ minPerRadius = 300
 maxPerRadius = 300
 nImages = 280
 
-nSamplesPerRadius = 12
+nSamplesPerRadius = 48
 
 bTiming = True
 verbosity = 1
@@ -44,8 +44,8 @@ class CSample:
         self.nSamplesPerRadius = nSamplesPerRadius
         self.samplesLines = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.int)
         self.samplesCols = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.int)
-        self.nValidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int16)
-        self.nInvalidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int16)
+        self.nValidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int)
+        self.nInvalidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int)
         self.AddSamples(maskVolume.mask, radiusImage)
         
         self.radIm = radiusImage
@@ -57,6 +57,8 @@ class CSample:
             
         for iImage in range(self.nImages):
             #print('<AddSamples> iImage= ', iImage)
+            if iImage > 0 and iImage % 10 == 0:
+                print('.', end='')
             for iRadius in range(self.nRadiusesPerImage):
                 #print('<AddSamples> iRadius= ', iRadius)
                 nVoxelsPerRadius = radIm.countPerRadius[iRadius].item()
@@ -93,54 +95,6 @@ class CSample:
             elapsed = time.monotonic() - start
             print(f"<CSample::AddSamples(> Elapsed time: {elapsed:.3f} seconds")
 
-        
-    """
-    def AddSamples(self, mask, radIm):
-        start = time.monotonic()
-        
-        maxNSample = maxPerRadius * maxRadius
-        self.images = torch.zeros(maxNSample, dtype=torch.int16)
-        self.lines = torch.zeros(maxNSample, dtype=torch.int16)
-        self.cols = torch.zeros(maxNSample, dtype=torch.int16)
-        self.radiuses = torch.zeros(maxNSample, dtype=torch.int16)
-        n = 0 
-        
-        relMin = 0
-        relMinLast = 0
-        bCenter = False
-        while relMin < minPerRadius:
-            if bCenter:
-                iLine = random.randint(200,311)
-                iCol = random.randint(200,311)
-            else:
-                iLine = random.randint(0,511)
-                iCol = random.randint(0,511)
-            bCenter = not bCenter
-                
-            iRadius = radIm.image.pData[iLine, iCol]
-            if iRadius < maxRadius and self.nPerRadius[iRadius] < maxPerRadius:
-                iImage = random.randint(0,nImages-1)
-                if mask[iImage, iLine, iCol] > 0:
-                    # Add sample
-                    self.images[n] = iImage
-                    self.lines[n] = iLine
-                    self.cols[n] = iCol
-                    self.radiuses[n] = iRadius
-                    
-                    #count samples
-                    self.nPerRadius[iRadius] += 1
-                    n += 1
-                    
-                    relMin = self.nPerRadius[0:250].min().item()
-                    if n % 15000 == 0 or relMin > relMinLast + 9:
-                        print(f'<AddSamles> {n=}, {relMin=}')
-                        relMinLast = relMin
-        self.n = n
-        if bTiming:
-            elapsed = time.monotonic() - start
-            print(f"<CSample::AddSamples(> Elapsed time: {elapsed:.3f} seconds")
-            """
-               
     def LogToFile(self):
         sfName = Config.LogFileName('Samples.csv')
         with open(sfName, 'w') as file:
@@ -157,16 +111,7 @@ class CSample:
                         
                             
         print('Log file written: ', sfName)
-        
-        """
-        sfName = Config.LogFileName('NSamplesPerRadius.csv')
-        with open(sfName, 'w') as file:
-            file.write('radius, n\n')
-            for i in range(maxRadius):
-                file.write(f'{i}, {self.nPerRadius[i]}\n')
-        print('Log file written: ', sfName)
-        """
-        
+
         
 def main():
     print('*** Test Sample')
