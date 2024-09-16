@@ -236,7 +236,7 @@ def main():
     bShort = False
     print('*** Train Poly Table')
     Config.OnInitRun()
-    Config.Clean()
+    #Config.Clean()
     #vol = CVolume('nominalVol', sVolumeFileNameNominal)
     trainer = CPolyTrainer()
     #trainer.RunOriginalReconAndScore()

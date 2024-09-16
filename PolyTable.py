@@ -9,11 +9,12 @@ Control Poly Table
 from os import path
 import torch
 import random
-#import sys
+import sys
+import numpy as np
 
 import Config
-from Utils import VerifyDir
-from Patch import CPatch
+from Utils import VerifyDir, VerifyJointDir
+from Patch import CCircularPatch, CRectangularPatch
 
 nDetectors = 688
 nRows = 192
@@ -23,15 +24,129 @@ nDetsPerReading = nDetectors * nRows
 patchSize = 20
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
-sfNominalTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0.bin'
-sfNominalTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1.bin'
-sfAiTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0_ai.bin'
-sfAiTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1_ai.bin'
+#sfNominalTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0.bin'
+#sfNominalTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1.bin'
+#sfAiTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0_ai.bin'
+#sfAiTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1_ai.bin'
 sDebugSaveDir = ''
 
 verbosity = 1
 
-    
+class CPolyTable:
+    """
+    Single table for one XRT
+    """
+    def __init__(self, iXrt):
+        """
+        Hold learning table for one XRT
+        Table can be initialized to flat or "best"
+        If there is "best" in the designated directory - load it by default
+        """
+        self.iXrt = iXrt
+        self.sfAiTab = f'PolyCalibration_kVp120_FOV250_Collimator140_XRT{iXrt}_ai.bin'
+        self.sfNomTab = f'PolyCalibration_kVp120_FOV250_Collimator140_XRT{iXrt}.bin'
+        
+        sfBestName = f'Poly_XRT{self.iXrt}_Best_width{nDetectors}_height{nRows}.float.rmat'
+        self.sfBestFullName = path.join(Config.sBestTabsDir,sfBestName)
+        
+        self.sHistoryDir = VerifyJointDir(Config.sBaseDir, f'Tab{iXrt}')
+
+        if not self.LoadBest():
+            self.PrepareFlatTable()
+
+        self.Save()
+        self.tempTable = self.table.clone().detach()
+        self.nTry = 0
+        self.nBetter = 0
+        self.sumBetter = 0
+        self.cPatch = CCircularPatch(patchSize)
+        self.rPatch = CRectangularPatch()
+        self.lastPatch = self.cPatch
+
+    def LoadBest(self):
+        if not path.isfile(self.sfBestFullName):
+            return False
+
+        npTable = np.memmap(self.sfBestFullName, dtype='float32', mode='r').__array__()
+        table = torch.from_numpy(npTable.copy())
+        self.table = table.view(-1,nRows,nDetectors)
+        
+        nLayersInTab = self.table.size()[0]
+        if nLayersInTab != nLayers:
+            print(f'<CPolyTable::LoadBest> ERROR {nLayersInTab=}')
+            sys.exit()
+        print('<CPolyTable::LoadBest> ', self.sfBestFullName)
+        return True
+        
+    def PrepareFlatTable(self):
+        self.table = torch.zeros([nLayers,nRows,nDetectors])
+        self.table[0] = torch.ones([nRows,nDetectors])
+        print('<CPolyTable::PrepareFlatTable> ', self.sfAiTab)
+
+    def SaveTable(self, table2Save, sfName=None):
+        if not sfName:
+            sfName = self.sfAiTab
+        if sfName.find(':') < 0:
+            if len(sDebugSaveDir) > 0:
+                VerifyDir(sDebugSaveDir)
+                sfName = path.join(sDebugSaveDir, sfName)
+            else:
+                sfName = path.join(sCalTabDir, sfName)
+            
+        npTable = table2Save.numpy()
+        #print('<SaveTable>', sfName)
+        with open (sfName, 'wb') as file:
+            file.write(npTable.tobytes())
+        if verbosity > 1:
+            print('Poly Table Saved:', sfName)
+
+    def Save(self, sfName=None):
+        self.SaveTable(self.table, sfName)
+
+    def TryRandomTableStep(self):
+        self.nTry += 1         
+        self.tempTable = self.table.clone().detach()
+        self.delta = (random.random() - 0.5) / 1000
+        
+        iType = random.randint(0,10)
+        if iType < 7:
+            self.lastPatch = self.cPatch
+        else:
+            self.lastPatch = self.rPatch
+            
+        self.lastPatch.AddRandom(self.tempTable,self.delta)
+        self.SaveTable(self.tempTable)
+
+    def TrySamePatch(self, delta):
+        self.nTry += 1         
+        self.tempTable = self.table.clone().detach()
+        self.delta = delta
+        self.lastPatch.Add(self.tempTable,self.delta)
+        self.SaveTable(self.tempTable)
+
+    def TryOnFailure(self):
+        self.TrySamePatch(-self.delta)
+        
+    def TryOnSuccess(self):
+        self.TrySamePatch(self.delta * 2)
+
+    def OnBetter(self, d):
+        self.nBetter += 1
+        self.sumBetter += d
+        self.lastPatch.OnBetter(d)
+        
+        # Make the last temp new nominal
+        self.table = self.tempTable.clone().detach()
+        
+        # Save to directory with best tables
+        self.Save(self.sfBestFullName)
+        
+        # Save to table-specific directory to remember history
+        sfName = f'Poly_XRT{self.iXrt}_Better{self.nBetter}_width{nDetectors}_height{nRows}.float.rmat'
+        sfFullName = path.join(self.sHistoryDir, sfName)
+        self.Save(sfFullName)
+        
+
 class CPolyTables:
     """
     Learn poly table by trying to improve flatness
@@ -45,71 +160,26 @@ class CPolyTables:
         Returns 2 improved tables
 
         """
-        self.PrepareEmptyTables()
-        self.patch = CPatch(patchSize)
-        self.nTrySteps0 = 0
-        self.nTrySteps1 = 0
-        self.nRealSteps0 = 0
-        self.nRealSteps1 = 0
-        self.sLast = 'None'
-    
-    def PrepareEmptyTables(self):
-        table = torch.zeros([nLayers,nRows,nDetectors])
-        table[0] = torch.ones([nRows,nDetectors])
-        self.table0 = table
-        self.table1 = self.table0.clone().detach()
-        self.SaveTables()
-
-    
-    def SaveTable(self, table, sfName):
-        if sfName.find(':') < 0:
-            if len(sDebugSaveDir) > 0:
-                VerifyDir(sDebugSaveDir)
-                sfName = path.join(sDebugSaveDir, sfName)
-            else:
-                sfName = path.join(sCalTabDir, sfName)
+        self.tables = []
+        for iXrt in range(2):
+            self.tables.append(CPolyTable(iXrt))
             
-        npTable = table.numpy()
-        with open (sfName, 'wb') as file:
-            file.write(npTable.tobytes())
-        if verbosity > 1:
-            print('Poly Table Saved:', sfName)
+        self.sLast = 'None'
+        self.iCurTab = 0
+        self.iTry = 0 
+        self.iBetter = 0
         
+
     def OnEndTraining(self):
         self.SaveTables()
     
     def SaveTables(self):
-        self.SaveTable(self.table0, sfAiTab0)
-        self.SaveTable(self.table1, sfAiTab1)
-        
-    def AddRectangle(self):
-        self.tmpTable[0,self.iFirstRow:self.iRowAfter,self.iFirstCol:self.iColAfter] += self.delta
-        if verbosity > 1:
-            print(f'Add Rectangle: rows {self.iFirstRow}:{self.iRowAfter}, cols {self.iFirstCol}:{self.iColAfter}, {self.delta=}')
-        
-    def AddRandomRectangle(self):
-        self.iFirstRow = random.randint(0, nRows-1)
-        self.iRowAfter = random.randint(self.iFirstRow+1, nRows)
-        self.iFirstCol = random.randint(0, nDetectors-1)
-        self.iColAfter = random.randint(self.iFirstCol+1, nDetectors)
-        self.AddRectangle()
-        self.sLast = 'R-Rectangle'
-       
-    def AddPatch(self):
-        side = self.patch.side
-        add = self.patch.raster * self.delta
-        self.tmpTable[0,self.iFirstRow:self.iFirstRow+side,self.iFirstCol:self.iFirstCol+side] += add
-        if verbosity > 1:
-            print(f'Add Circular Patch: rows {self.iFirstRow}, cols {self.iFirstCol}, {self.delta=}')
-       
-    def AddRandomPatch(self):
-        side = self.patch.side
-        self.iFirstRow = random.randint(0, nRows-side-1)
-        self.iFirstCol = random.randint(0, nDetectors-side-1)
-        self.AddPatch()
-        self.sLast = f'R-Patch{self.patch.side}'
+        for table in self.tables:
+            table.Save()
 
+    """
     def SaveTmpTable(self):
+        
         if self.iTable == 0:
             sfName = sfAiTab0
             self.nTrySteps0 += 1
@@ -117,69 +187,30 @@ class CPolyTables:
             sfName = sfAiTab1
             self.nTrySteps1 += 1
         self.SaveTable(self.tmpTable, sfName)
+        """
        
         
-    def TryRandomTableStep(self, iTable):
-        self.iTable = iTable
+    def TryRandomTableStep(self):
+        self.iTry += 1
+        self.iCurTab = random.randint(0, 1)
         if verbosity > 1:
-            print(f'<TryRandomTableStep> T{iTable}')
-        if self.iTable == 0:
-            table = self.table0
-        else:
-            table = self.table1
-            
-        self.tmpTable = table.clone().detach()
-        self.delta = (random.random() - 0.5) / 1000
-        
-        self.iType = random.randint(0,10)
-        if self.iType < 7:
-            self.AddRandomPatch()
-        else:
-            self.AddRandomRectangle()
-        
-        self.SaveTmpTable()
-        return self.delta
+            print(f'<TryRandomTableStep> T{self.iCurTab}')
+
+        self.tables[self.iCurTab].TryRandomTableStep()
     
     def TryOnFailure(self):
-        self.delta = - self.delta
-        if self.iType < 7:
-            self.AddPatch()
-            self.sLast = f'F-Patch{self.patch.side}'
-        else:
-            self.AddRectangle()
-            self.sLast = 'F-Rectangle'
-        self.SaveTmpTable()
-        return self.delta
+        self.iTry += 1
+        self.tables[self.iCurTab].TryOnFailure()
     
     def TryOnSuccess(self):
-        self.delta = self.delta * 2
-        if self.iType < 7:
-            self.AddPatch()
-            self.sLast = f'G-Patch{self.patch.side}'
-        else:
-            self.AddRectangle()
-            self.sLast = 'G-Rectangle'
-        self.SaveTmpTable()
-        return self.delta
+        self.iTry += 1
+        self.tables[self.iCurTab].TryOnSuccess()
         
-    def SaveBetter(self, iXrt, iBetter):
-        if iXrt == 0:
-            self.table0 = self.tmpTable
-        else:
-            self.table1 = self.tmpTable           
-            
-        # Save as best for resuming training later
-        sfName = f'Poly_XRT{iXrt}_Best_width{nDetectors}_height{nRows}.float.bin'
-        self.SaveBest(sfName)
+    def OnBetter(self, d):
+        self.iBetter += 1
+        self.tables[self.iCurTab].OnBetter(d)
         
-        # Save with better index for the record
-        sfName = f'Poly_XRT{iXrt}_Better{iBetter}_width{nDetectors}_height{nRows}.float.bin'
-        if iXrt == 0:
-            self.nRealSteps0 += 1
-        else:
-            self.nRealSteps1 += 1
-        self.SaveAside(iXrt, sfName)
-            
+"""            
     def SaveDebug(self, iXrt):
         if iXrt == 0:
             iStep = self.nTrySteps0
@@ -205,35 +236,38 @@ class CPolyTables:
             self.SaveTable(self.table0, sfAiTab0)
         else:
             self.SaveTable(self.table1, sfAiTab1)
-        
+        """
 
+def TestSingleTable():
+    print('*** Check Poly Table Class')
+    tab0 = CPolyTable(0)
+    #tab0.Save()
+    tab0.OnBetter(0)
+    tab0.TryRandomTableStep()
+    tab0.OnBetter(0.3)
+    tab0.TryOnFailure()
+    tab0.OnBetter(0.2)
+    tab0.TryOnSuccess()
+    tab0.OnBetter(0.1)
+
+def TestTables():
+    print('*** Check Poly Tables Class')
+    tables = CPolyTables()
+    tables.Save()
+    tables.iCurTab = 0
+    for i in range(10):
+        tables.TryRandomTableStep(0)
+        tables.SaveDebug(0)
 
 def main():
-    global sDebugSaveDir
+    global sDebugSaveDir, verbosity
+    verbosity = 5
     Config.OnInitRun()
-    print('*** Check Poly Table Class')
     sDebugSaveDir = 'd:/Dump'
-    tabs = CPolyTables()
-    for i in range(10):
-        tabs.TryRandomTableStep(0)
-        tabs.SaveDebug(0)
     
-    #bNominal = False
-    #nTrain = 50000
+    TestSingleTable()
     
-    #VerifyDir('d:/Dump')
-    #VerifyDir('d:/PyLog')
-    
-    """
-    if bNominal:
-        print('*** Try Nominal')
-        SetPolyNominal()
-        RunRecon()
-        ScoreFlatness(bNominal=True)
-    else:
-        TrainPolyCal(nTrain)
-        #TrainPolyCal(nTrain, nMaxBetter = 2)
-        """
+    #TestTables()
 
 if __name__ == '__main__':
     main()

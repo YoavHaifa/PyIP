@@ -18,14 +18,14 @@ sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 11
+iExperiment = 12
 sExp = 'SmallPatches'
-#sExp = 'try'
+sExp = 'try'
 sBaseDir = ''
 sLogDir = ''
 sVolDir = ''
-sTabDir0 = ''
-sTabDir1 = ''
+#sTabDir0 = ''
+#sTabDir1 = ''
 sBestTabsDir = ''
 bInitialized = False
 gLog = None
@@ -33,7 +33,7 @@ gLog = None
 verbosity = 1
 
 def OnInitRun(sSpecialVolDir=None):
-    global sBaseDir, sLogDir, sVolDir, sTabDir0, sTabDir1
+    global sBaseDir, sLogDir, sVolDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
     global sBestTabsDir
     
@@ -67,8 +67,6 @@ def OnInitRun(sSpecialVolDir=None):
     sfVolumeNominal = path.join(sVolDir, sfVolumeNominal)
     sfVolumeAi = path.join(sVolDir, sfVolumeAi)
     
-    sTabDir0 = VerifyJointDir(sBaseDir, 'Tab0')
-    sTabDir1 = VerifyJointDir(sBaseDir, 'Tab1')
     sBestTabsDir = VerifyJointDir(sBaseDir, 'BestTabs')
 
     
@@ -120,6 +118,8 @@ def SaveAiVolume(iSave):
 def Clean():
     DeleteFilesInDir(sVolDir)
     DeleteFilesInDir(sLogDir)
+    DeleteFilesInDir(sTabDir0)
+    DeleteFilesInDir(sTabDir1)
 
 
 def WriteMatrixToFile(matrix, sfName, sfType='float'):
