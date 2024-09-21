@@ -69,13 +69,16 @@ class CCircularPatch(CPatch):
         self.nTry += 1
         if verbosity > 1:
             print(f'Add Circular {self.nTry}: rows {self.iFirstRow}, cols {self.iFirstCol}, {delta=}')
+        return table
        
-    def AddRandom(self, table, delta):
+    def AddRandom(self, table, delta, log):
         side = self.side
         self.iFirstRow = random.randint(0, nRows-side-1)
         self.iFirstCol = random.randint(0, nDetectors-side-1)
-        self.Add(table, delta)
-        return f'R-Circ{self.radius}'
+        if log:
+            log.Log(f'<Circ::AddRandom> iFirst [{self.iFirstRow},{self.iFirstCol}] {delta=:.9f}')
+        return self.Add(table, delta)
+        #return f'R-Circ{self.radius}'
 
     def Dump(self):
         sfName = f'Patch_radius{self.radius}'
@@ -91,18 +94,21 @@ class CRectangularPatch(CPatch):
         self.delta = 0
         
     def Add(self, table, delta):
-        table[self.iFirstRow:self.iRowAfter,self.iFirstCol:self.iColAfter] += delta
+        table[0,self.iFirstRow:self.iRowAfter,self.iFirstCol:self.iColAfter] += delta
         self.nTry += 1
         if verbosity > 1:
             print(f'Add Rectangle {self.nTry}: rows {self.iFirstRow}:{self.iRowAfter}, cols {self.iFirstCol}:{self.iColAfter}, {delta=}')
+        return table
         
-    def AddRandom(self, table, delta):
-        self.iFirstRow = random.randint(0, nRows-1)
+    def AddRandom(self, table, delta, log):
+        self.iFirstRow = random.randint(0, nRows-20)
         self.iRowAfter = random.randint(self.iFirstRow+1, nRows)
-        self.iFirstCol = random.randint(0, nDetectors-1)
+        self.iFirstCol = random.randint(0, nDetectors-20)
         self.iColAfter = random.randint(self.iFirstCol+1, nDetectors)
-        self.Add(table, delta)
-        return 'R-Rectangle'
+        if log:
+            log.Log(f'<Rect::AddRandom> first [{self.iFirstRow},{self.iFirstCol}] after [{self.iRowAfter},{self.iColAfter}] {delta=:.9f}')
+        return self.Add(table, delta)
+        #return 'R-Rectangle'
        
 
 def main():

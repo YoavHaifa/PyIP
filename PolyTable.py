@@ -15,6 +15,7 @@ import numpy as np
 import Config
 from Utils import VerifyDir, VerifyJointDir
 from Patch import CCircularPatch, CRectangularPatch
+from Log import CLog
 
 nDetectors = 688
 nRows = 192
@@ -36,13 +37,14 @@ class CPolyTable:
     """
     Single table for one XRT
     """
-    def __init__(self, iXrt):
+    def __init__(self, iXrt, log=None):
         """
         Hold learning table for one XRT
         Table can be initialized to flat or "best"
         If there is "best" in the designated directory - load it by default
         """
         self.iXrt = iXrt
+        self.log = log
         self.sfAiTab = f'PolyCalibration_kVp120_FOV250_Collimator140_XRT{iXrt}_ai.bin'
         self.sfNomTab = f'PolyCalibration_kVp120_FOV250_Collimator140_XRT{iXrt}.bin'
         
@@ -56,6 +58,9 @@ class CPolyTable:
 
         self.Save()
         self.tempTable = self.table.clone().detach()
+        self.prevAvg = self.table.mean().item()
+        if self.log:
+            self.log.Log(f'<CPolyTable::__init__> avg {self.prevAvg}')
         self.nTry = 0
         self.nBetter = 0
         self.sumBetter = 0
@@ -93,6 +98,10 @@ class CPolyTable:
             else:
                 sfName = path.join(sCalTabDir, sfName)
             
+        if self.log:
+            avg = table2Save.mean().item()
+            self.log.Log(f'<SaveTable> {avg} --> {sfName}')
+            
         npTable = table2Save.numpy()
         #print('<SaveTable>', sfName)
         with open (sfName, 'wb') as file:
@@ -104,6 +113,7 @@ class CPolyTable:
         self.SaveTable(self.table, sfName)
 
     def TryRandomTableStep(self):
+        
         self.nTry += 1         
         self.tempTable = self.table.clone().detach()
         self.delta = (random.random() - 0.5) / 1000
@@ -114,7 +124,10 @@ class CPolyTable:
         else:
             self.lastPatch = self.rPatch
             
-        self.lastPatch.AddRandom(self.tempTable,self.delta)
+        if self.log:
+            self.log.Log(f'<TryRandomTableStep> {iType=}, {self.delta=}')
+            
+        self.tempTable = self.lastPatch.AddRandom(self.tempTable, self.delta, self.log)
         self.SaveTable(self.tempTable)
 
     def TrySamePatch(self, delta):
@@ -145,6 +158,21 @@ class CPolyTable:
         sfName = f'Poly_XRT{self.iXrt}_Better{self.nBetter}_width{nDetectors}_height{nRows}.float.rmat'
         sfFullName = path.join(self.sHistoryDir, sfName)
         self.Save(sfFullName)
+        self.sfLastSaved = sfFullName
+        
+    def Log(self, log, sAt):
+        log.Log(f'<PolyTable::Log> at {sAt}: {self.sfLastSaved}')
+        avg = self.table.mean().item()
+        avgTmp = self.tempTable.mean().item()
+
+        if (avg == self.prevAvg):
+            s = 'SAME'
+        else:
+            diff = avg - self.prevAvg
+            s = f'DIFF {diff:.9f}'
+        log.Log(f'{avg=:.9f}, {avgTmp=:.9f} prev {self.prevAvg:.9f} {s}')
+        log.Log('---')
+        self.prevAvg = avg
         
 
 class CPolyTables:
@@ -240,15 +268,26 @@ class CPolyTables:
 
 def TestSingleTable():
     print('*** Check Poly Table Class')
-    tab0 = CPolyTable(0)
+    log = CLog('TestSingleTable')
+    tab0 = CPolyTable(0, log)
     #tab0.Save()
     tab0.OnBetter(0)
+    tab0.Log(log, 'Init')
     tab0.TryRandomTableStep()
     tab0.OnBetter(0.3)
+    tab0.Log(log, 'random added')
+    tab0.TryRandomTableStep()
+    tab0.OnBetter(0.4)
+    tab0.Log(log, 'random added')
     tab0.TryOnFailure()
     tab0.OnBetter(0.2)
+    tab0.Log(log, 'On Failure')
+    tab0.TryRandomTableStep()
+    tab0.OnBetter(0.4)
+    tab0.Log(log, 'random added')
     tab0.TryOnSuccess()
     tab0.OnBetter(0.1)
+    tab0.Log(log, 'On Success')
 
 def TestTables():
     print('*** Check Poly Tables Class')
