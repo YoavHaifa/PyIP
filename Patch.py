@@ -69,7 +69,6 @@ class CCircularPatch(CPatch):
         self.nTry += 1
         if verbosity > 1:
             print(f'Add Circular {self.nTry}: rows {self.iFirstRow}, cols {self.iFirstCol}, {delta=}')
-        return table
        
     def AddRandom(self, table, delta, log):
         side = self.side
@@ -77,7 +76,7 @@ class CCircularPatch(CPatch):
         self.iFirstCol = random.randint(0, nDetectors-side-1)
         if log:
             log.Log(f'<Circ::AddRandom> iFirst [{self.iFirstRow},{self.iFirstCol}] {delta=:.9f}')
-        return self.Add(table, delta)
+        self.Add(table, delta)
         #return f'R-Circ{self.radius}'
 
     def Dump(self):
@@ -98,7 +97,6 @@ class CRectangularPatch(CPatch):
         self.nTry += 1
         if verbosity > 1:
             print(f'Add Rectangle {self.nTry}: rows {self.iFirstRow}:{self.iRowAfter}, cols {self.iFirstCol}:{self.iColAfter}, {delta=}')
-        return table
         
     def AddRandom(self, table, delta, log):
         self.iFirstRow = random.randint(0, nRows-20)
@@ -107,7 +105,7 @@ class CRectangularPatch(CPatch):
         self.iColAfter = random.randint(self.iFirstCol+1, nDetectors)
         if log:
             log.Log(f'<Rect::AddRandom> first [{self.iFirstRow},{self.iFirstCol}] after [{self.iRowAfter},{self.iColAfter}] {delta=:.9f}')
-        return self.Add(table, delta)
+        self.Add(table, delta)
         #return 'R-Rectangle'
        
 

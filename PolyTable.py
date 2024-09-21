@@ -67,6 +67,7 @@ class CPolyTable:
         self.cPatch = CCircularPatch(patchSize)
         self.rPatch = CRectangularPatch()
         self.lastPatch = self.cPatch
+        self.iDebugSave = 0
 
     def LoadBest(self):
         if not path.isfile(self.sfBestFullName):
@@ -127,7 +128,7 @@ class CPolyTable:
         if self.log:
             self.log.Log(f'<TryRandomTableStep> {iType=}, {self.delta=}')
             
-        self.tempTable = self.lastPatch.AddRandom(self.tempTable, self.delta, self.log)
+        self.lastPatch.AddRandom(self.tempTable, self.delta, self.log)
         self.SaveTable(self.tempTable)
 
     def TrySamePatch(self, delta):
@@ -155,10 +156,18 @@ class CPolyTable:
         self.Save(self.sfBestFullName)
         
         # Save to table-specific directory to remember history
-        sfName = f'Poly_XRT{self.iXrt}_Better{self.nBetter}_width{nDetectors}_height{nRows}.float.rmat'
-        sfFullName = path.join(self.sHistoryDir, sfName)
-        self.Save(sfFullName)
-        self.sfLastSaved = sfFullName
+        sfNameBetter = f'Poly_XRT{self.iXrt}_Better{self.nBetter}_width{nDetectors}_height{nRows}.float.rmat'
+        sfFullNameBetter = path.join(self.sHistoryDir, sfNameBetter)
+        self.Save(sfFullNameBetter)
+        self.sfLastSaved = sfFullNameBetter
+        
+    def SaveDebug(self):
+        self.iDebugSave += 1 
+        sfNameDebug = f'Poly_XRT{self.iXrt}_Debug{self.iDebugSave}_width{nDetectors}_height{nRows}.float.rmat'
+        sfFullNameDebug = path.join(self.sHistoryDir, sfNameDebug)
+        self.Save(sfFullNameDebug)
+        self.sfLastSaved = sfFullNameDebug
+        
         
     def Log(self, log, sAt):
         log.Log(f'<PolyTable::Log> at {sAt}: {self.sfLastSaved}')
@@ -199,11 +208,19 @@ class CPolyTables:
         
 
     def OnEndTraining(self):
-        self.SaveTables()
+        self.Save()
     
-    def SaveTables(self):
+    def Save(self):
         for table in self.tables:
             table.Save()
+    
+    def SaveDebug(self):
+        self.tables[self.iCurTab].SaveDebug()
+    
+    def Log(self, log, sAt):
+        if log:
+            for table in self.tables:
+                table.Log(log, sAt)
 
     """
     def SaveTmpTable(self):
@@ -291,12 +308,21 @@ def TestSingleTable():
 
 def TestTables():
     print('*** Check Poly Tables Class')
+    log = CLog('TestTables')
     tables = CPolyTables()
     tables.Save()
     tables.iCurTab = 0
-    for i in range(10):
-        tables.TryRandomTableStep(0)
-        tables.SaveDebug(0)
+    tables.SaveDebug()
+    tables.iCurTab = 1
+    tables.SaveDebug()
+    tables.Log(log,'Start')
+    
+    for i in range(4):
+        tables.TryRandomTableStep()
+        log.Log(f'<TryRandomTableStep> {tables.iCurTab}')
+        tables.OnBetter(0.1)
+        tables.SaveDebug()
+        tables.Log(log, f'TryRand_{i} - {tables.iCurTab}')
 
 def main():
     global sDebugSaveDir, verbosity
@@ -304,7 +330,8 @@ def main():
     Config.OnInitRun()
     sDebugSaveDir = 'd:/Dump'
     
-    TestSingleTable()
+    #TestSingleTable()
+    TestTables()
     
     #TestTables()
 
