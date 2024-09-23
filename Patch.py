@@ -63,8 +63,8 @@ class CCircularPatch(CPatch):
     def Add(self, table, delta):
         side = self.side
         add = self.raster * delta
-        print(f'{add.shape=}')
-        print(f'{table.shape=}')
+        #print(f'{add.shape=}')
+        #print(f'{table.shape=}')
         table[0,self.iFirstRow:self.iFirstRow+side,self.iFirstCol:self.iFirstCol+side] += add
         self.nTry += 1
         if verbosity > 1:

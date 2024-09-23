@@ -18,9 +18,9 @@ sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 12
-sExp = 'SmallPatches'
-sExp = 'try'
+iExperiment = 16
+sExp = 'RangeHQCirc'
+#sExp = 'try'
 sBaseDir = ''
 sLogDir = 'd:/Log'
 sVolDir = ''
@@ -113,13 +113,14 @@ def SetPolyByAi():
 def SaveAiVolume(iSave):
     sfPostfix = f'_save{iSave}.float.rvol'
     sfSaveName = sfVolumeAi.replace('.float.rvol', sfPostfix)
-    TryRename(sfVolumeAi, sfSaveName)
+    if not path.exists(sfSaveName):
+        TryRename(sfVolumeAi, sfSaveName)
 
 def Clean():
     DeleteFilesInDir(sVolDir)
     DeleteFilesInDir(sLogDir)
-    DeleteFilesInDir(sTabDir0)
-    DeleteFilesInDir(sTabDir1)
+    #DeleteFilesInDir(sTabDir0)
+    #DeleteFilesInDir(sTabDir1)
 
 
 def WriteMatrixToFile(matrix, sfName, sfType='float'):

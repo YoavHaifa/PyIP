@@ -7,9 +7,10 @@ Just try some simple code examples
 
 import os
 import torch
+import random
 
-sAiFlag = 'd:\Config\Poly\GetAiTable.txt'
-sAiFlagRemoved = 'd:\Config\Poly\GetAiTable_x.txt'
+sAiFlag = 'd:/Config/Poly/GetAiTable.txt'
+sAiFlagRemoved = 'd:/Config/Poly/GetAiTable_x.txt'
 
 def TryRename():
     #print('Try Rename')
@@ -32,12 +33,20 @@ def TryIndices():
     fast = mat[lines,cols]
     print(fast)
     
-
+def tryRandom():
+    print('Try Random')
+    count = torch.zeros(11)
+    for i in range(220):
+        ir = random.randint(0,10)
+        count[ir] += 1
+    print(count)
+    print(f'{count.sum()=}')
 
 def main():
     print('*** Just try')
-    #TryRename();
-    TryIndices();
+    #TryRename()
+    #TryIndices()
+    tryRandom()
     print('Try Finished')
 
 

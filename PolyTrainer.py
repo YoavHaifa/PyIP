@@ -7,7 +7,7 @@ Poly Trainer Class - responsible for the complete process of training a poly tab
 
 #import os
 from os import path
-import random
+#import random
 #import torch
 #import time
 import sys
@@ -18,7 +18,7 @@ from RadiusImage import CRadiusImage
 from MaskVolume import CMaskVolume
 from Sample import CSample
 from PolyScorer import CPolyScorer
-from RunRecon import RunAiRecon, RunOriginalRecon
+from RunRecon import RunAiRecon, RunOriginalRecon, VeifyReconRunning
 from PolyTable import CPolyTables
 from Utils import GetAbortFileName
 from Log import CLog
@@ -71,8 +71,6 @@ class CPolyTrainer:
 
     def OpenCsv(self, sfName):
         f, sfName = Config.OpenLogGetName(sfName)
-        #f.write('xrt, fRow, lRow, fCol, lCol, delta, score, diff\n')
-        #f.write(f'01, 0, {nRows}, 0, {nDetectors}, 0, {self.bestScore}, 0\n')
         
         #Write Title for all columns
         f.write('xrt, sample, delta, step')
@@ -85,8 +83,8 @@ class CPolyTrainer:
         f.close()
         return sfName
                 
-    def RunFlatTable(self):
-        self.tableGenerator = CPolyTables() # Prepares flat table
+    def RunInitialTable(self):
+        self.tableGenerator = CPolyTables() # Prepares initial table
         RunAiRecon()
         self.firstScore = self.scorer.Score(Config.sfVolumeAi, self.sample)
         self.bestScore = self.firstScore
@@ -123,56 +121,31 @@ class CPolyTrainer:
     def SelectNextStep(self):
         #print(f'<SelectNextStep> {self.sNext=}')
         if self.sNext == 'random':
-            self.iTable = random.randint(0, 1)
-            delta = self.tableGenerator.TryRandomTableStep(self.iTable)
-            print(f'<TryStep> {self.iTry} RANDOM {self.tableGenerator.sLast} {delta=}')
+            self.delta = self.tableGenerator.TryRandomTableStep()
+            print(f'<TryStep> {self.iTry} RANDOM {self.tableGenerator.sLast} {self.delta=}')
         elif self.sNext == 'OnFailure':
-            delta = self.tableGenerator.TryOnFailure()
-            print(f'<TryStep> {self.iTry} ON_FAIL {self.tableGenerator.sLast} {delta=}')
+            self.delta = self.tableGenerator.TryOnFailure()
+            print(f'<TryStep> {self.iTry} ON_FAIL {self.tableGenerator.sLast} {self.delta=}')
         elif self.sNext == 'OnSuccess':
-            delta = self.tableGenerator.TryOnSuccess()
-            print(f'<TryStep> {self.iTry} ON_GOOD {self.tableGenerator.sLast} {delta=}')
+            self.delta = self.tableGenerator.TryOnSuccess()
+            print(f'<TryStep> {self.iTry} ON_GOOD {self.tableGenerator.sLast} {self.delta=}')
         else:
             print(f'<SelectNextStep> Illegal step {self.sNext}')
-            self.sNext = 'random'
             sys.exit()
-            return self.SelectNextStep()
-    
-        return delta
+            #self.sNext = 'random'
+            #return self.SelectNextStep()
 
-    def TryStep(self):
-        Config.Start('TryStep')
-        self.iTry += 1 
-        delta = self.SelectNextStep()
-        RunAiRecon()
-        score = self.scorer.Score(Config.sfVolumeAi, self.sample)
-        diff = self.bestScore - score
-        fAll = open(self.sfAllCsv,'a')
-        fAll.write(f'{self.iTable}, {self.iSample}, {delta}, {self.tableGenerator.sLast}')
-        self.scorer.WriteScore(fAll)
-        fAll.write(f', {diff}')
-
-        if score < self.bestScore:
+    def OnBetter(self, score):
             Config.Start('OnBetter')
-            if self.iTable == 0:
-                self.nBetter0 += 1
-                self.tableGenerator.SaveBetter(0, self.nBetter0)
-            else:
-                self.nBetter1 += 1
-                self.tableGenerator.SaveBetter(1, self.nBetter1)
+            self.tableGenerator.OnBetter(score - self.bestScore)
                 
             self.nBetter += 1
             print(f'+++ === >>> New table better {self.nBetter} {score=} < {self.bestScore}')
             self.bestScore = score
-            #centralImage.fName = centralImage.fName.replace('Central_Image', f'Central_Image_step{self.nBetter}')
-            #centralImage.WriteToFile()
-            fAll.write(', *\n')
+            self.fAll.write(', *\n')
             fImp = open(self.sfImproveCsv, 'a')
-            #fImp.write(f'{iTable}, {iFirstRow}, {iRowAfter}, {iFirstCol}, {iColAfter}, {delta}, {score}, {diff}\n')
-            fImp.write(f'{self.iTable}, {self.iSample}, {delta}')
-            #fImp.write(f'{self.iTable}, {self.iSample}, {delta*100:.6f}')
+            fImp.write(f'{self.tableGenerator.iCurTab}, {self.iSample}, {self.delta}')
             sScore = self.scorer.WriteScore(fImp)
-            #fImp.write(f', {diff}')
             fImp.write('\n')
             fImp.close()
             Config.Log(sScore)
@@ -193,22 +166,37 @@ class CPolyTrainer:
                 
             self.nBetterPerSample += 1
             Config.End('OnBetter')
+        
+    def TryStep(self):
+        Config.Start('TryStep')
+        self.iTry += 1 
+        self.SelectNextStep()
+        RunAiRecon()
+        score = self.scorer.Score(Config.sfVolumeAi, self.sample)
+        diff = self.bestScore - score
+        self.fAll = open(self.sfAllCsv,'a')
+        self.fAll.write(f'{self.tableGenerator.iCurTab}, {self.iSample}, {self.delta}, {self.tableGenerator.sLast}')
+        self.scorer.WriteScore(self.fAll)
+        self.fAll.write(f', {diff}')
+
+        if score < self.bestScore:
+            self.OnBetter(score)
             Config.End('TryStep')
             return True
         
-        fAll.write('\n')
-        fAll.close()
+        self.fAll.write('\n')
+        self.fAll.close()
         self.nNotBetterConsecutive += 1
         self.nNotBetterPerSample += 1
-        self.tableGenerator.RestoreTable(self.iTable)
+        self.tableGenerator.OnNotBetter()
         print(f'--- <<< New table NOT better {self.nNotBetterConsecutive}')
         if self.nNotBetterPerSample % 10 == 0:
             print(f'--- <<< New table NOT better {score=} >= {self.bestScore} ({diff=})')
-        #if self.sNext == 'random':
-        #    self.sNext = 'OnFailure'
-        #else:
-        #    self.sNext = 'random'
-        self.sNext = 'random'
+        if self.sNext == 'random':
+            self.sNext = 'OnFailure'
+        else:
+            self.sNext = 'random'
+        #self.sNext = 'random'
         self.nMultiply = 0 
         Config.End('TryStep')
         if self.nNotBetterPerSample % deltaSample == 0:
@@ -232,18 +220,21 @@ class CPolyTrainer:
 
         
 def main():
-    bShort = True
+    VeifyReconRunning()
     bShort = False
+    #bShort = True
+    if Config.sExp == 'try':
+        bShort = True
     print('*** Train Poly Table')
     Config.OnInitRun()
     #Config.Clean()
     #vol = CVolume('nominalVol', sVolumeFileNameNominal)
     trainer = CPolyTrainer()
     #trainer.RunOriginalReconAndScore()
-    trainer.RunFlatTable()
+    trainer.RunInitialTable()
     
     if bShort:
-        trainer.Train(10)
+        trainer.Train(12)
     else:
         trainer.Train(20000)
 

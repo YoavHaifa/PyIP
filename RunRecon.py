@@ -6,6 +6,8 @@ Run Recon for Poly Calibration
 """
 
 import subprocess
+import psutil
+import sys
 
 import Config
 
@@ -29,7 +31,8 @@ def RunRecon():
     #args = [sHSProg, sParams]
     args = [sHSProg]
     args.extend(lParams)
-    print('*** Calling Recon')
+    if verbose > 1:
+        print('*** Calling Recon')
     if verbose > 2:
         print(args)
     subprocess.run(args)
@@ -42,8 +45,16 @@ def RunOriginalRecon():
 def RunAiRecon():
     Config.SetPolyByAi()
     RunRecon()
+    
+def VeifyReconRunning():
+    bRunning = "AppRunner.exe" in (p.name() for p in psutil.process_iter())
+    if not bRunning:
+        print('AppRunner is not running!')
+        sys.exit()
 
 def main():
+    print('*** Verify that recon is running')
+    VeifyReconRunning()
     print('*** Run Original Recon by Host Simulator Command Line')
     RunOriginalRecon()
     print('Nominal Recon Finished')

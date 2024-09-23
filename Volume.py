@@ -41,12 +41,12 @@ class CVolume():
         Args:
             fileName: name of file to read - values may be short or float nImages
         """
-        if verbosity > 1:
+        if not path.exists(fileName):
+            fileName = path.join(Config.sVolDir, fileName)
             if not path.exists(fileName):
-                fileName = path.join(Config.sVolDir, fileName)
-                if not path.exists(fileName):
-                    print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
-                    sys.exit()
+                print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
+                sys.exit()
+        if verbosity > 1:
             print(f'<CVolume::__init__> {name} file: {fileName}')
             
         self.name = name;

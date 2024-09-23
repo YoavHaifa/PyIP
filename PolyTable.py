@@ -23,6 +23,7 @@ nLayers = 3
 nDetsPerReading = nDetectors * nRows
 
 patchSize = 20
+circPC = 100
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
 #sfNominalTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0.bin'
@@ -113,14 +114,17 @@ class CPolyTable:
     def Save(self, sfName=None):
         self.SaveTable(self.table, sfName)
 
+    def Restore(self):
+        self.SaveTable(self.table)
+
     def TryRandomTableStep(self):
         
         self.nTry += 1         
         self.tempTable = self.table.clone().detach()
         self.delta = (random.random() - 0.5) / 1000
         
-        iType = random.randint(0,10)
-        if iType < 7:
+        iType = random.randint(0,99)
+        if iType < circPC:
             self.lastPatch = self.cPatch
         else:
             self.lastPatch = self.rPatch
@@ -203,8 +207,9 @@ class CPolyTables:
             
         self.sLast = 'None'
         self.iCurTab = 0
-        self.iTry = 0 
-        self.iBetter = 0
+        self.nTry = 0 
+        self.nBetter = 0
+        self.nNotBetter = 0
         
 
     def OnEndTraining(self):
@@ -236,24 +241,31 @@ class CPolyTables:
        
         
     def TryRandomTableStep(self):
-        self.iTry += 1
+        self.nTry += 1
         self.iCurTab = random.randint(0, 1)
         if verbosity > 1:
             print(f'<TryRandomTableStep> T{self.iCurTab}')
 
         self.tables[self.iCurTab].TryRandomTableStep()
+        self.delta = self.tables[self.iCurTab].delta
     
     def TryOnFailure(self):
-        self.iTry += 1
+        self.nTry += 1
         self.tables[self.iCurTab].TryOnFailure()
+        self.delta = self.tables[self.iCurTab].delta
     
     def TryOnSuccess(self):
-        self.iTry += 1
+        self.nTry += 1
         self.tables[self.iCurTab].TryOnSuccess()
+        self.delta = self.tables[self.iCurTab].delta
         
     def OnBetter(self, d):
-        self.iBetter += 1
+        self.nBetter += 1
         self.tables[self.iCurTab].OnBetter(d)
+        
+    def OnNotBetter(self):
+        self.nNotBetter += 1
+        self.tables[self.iCurTab].Restore()
         
 """            
     def SaveDebug(self, iXrt):
