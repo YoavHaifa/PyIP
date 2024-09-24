@@ -10,6 +10,7 @@ import math
 import random
 
 import Config
+from Log import CLog
 
 nDetectors = 688
 nRows = 192
@@ -27,6 +28,7 @@ class CPatch:
         self.nTry = 0
         self.nBetter = 0
         self.sumBetter = 0
+        self.nEdge = 0
 
     def OnBetter(self, d):
         self.nBetter += 1
@@ -61,31 +63,69 @@ class CCircularPatch(CPatch):
                     self.raster[iLine, iCol] =1 - distance / radius
 
     def Add(self, table, delta):
-        side = self.side
-        add = self.raster * delta
-        #print(f'{add.shape=}')
-        #print(f'{table.shape=}')
-        table[0,self.iFirstRow:self.iFirstRow+side,self.iFirstCol:self.iFirstCol+side] += add
         self.nTry += 1
         if verbosity > 1:
-            print(f'Add Circular {self.nTry}: rows {self.iFirstRow}, cols {self.iFirstCol}, {delta=}')
+            print(f'Add Circular {self.nTry}, {delta=}')
+            print(f'table[{self.iFirstRow}:{self.iLastRow}, {self.iFirstCol}:{self.iLastCol}]')
+            print(f'patch[{self.iFirstRowInPatch}:{self.iLastRowInPatch}, {self.iFirstColInPatch}:{self.iLastColInPatch}]')
+        add = self.raster[self.iFirstRowInPatch:self.iLastRowInPatch,self.iFirstColInPatch:self.iLastColInPatch] * delta
+        table[0,self.iFirstRow:self.iLastRow,self.iFirstCol:self.iLastCol] += add
        
     def AddRandom(self, table, delta, log):
-        side = self.side
-        self.iFirstRow = random.randint(0, nRows-side-1)
-        self.iFirstCol = random.randint(0, nDetectors-side-1)
+        halfSide = int(self.side / 2)
+        bEdge = False
+        self.iCenterRow = random.randint(0, nRows-1)
+        self.iCenterCol = random.randint(0, nDetectors-1)
         if log:
-            log.Log(f'<Circ::AddRandom> iFirst [{self.iFirstRow},{self.iFirstCol}] {delta=:.9f}')
+            log.Log(f'<Circ::AddRandom> center [{self.iFirstRow},{self.iCenterCol}] {delta=:.9f}')
+            
+        self.iFirstRow = self.iCenterRow - halfSide
+        if self.iFirstRow < 0:
+            self.iFirstRowInPatch = -self.iFirstRow
+            self.iFirstRow = 0
+            bEdge = True
+        else:
+            self.iFirstRowInPatch = 0
+            
+        self.iFirstCol = self.iCenterCol - halfSide
+        if self.iFirstCol < 0:
+            self.iFirstColInPatch = -self.iFirstCol
+            self.iFirstCol = 0
+            bEdge = True
+        else:
+            self.iFirstColInPatch = 0
+              
+        self.iLastRow = self.iCenterRow + halfSide
+        if self.iLastRow > nRows:
+            delta = self.iLastRow - nRows
+            self.iLastRowInPatch = -delta
+            self.iLastRow = nRows
+            bEdge = True
+        else:
+            self.iLastRowInPatch = self.side
+              
+        self.iLastCol = self.iCenterCol + halfSide
+        if self.iLastCol > nDetectors:
+            delta = self.iLastCol - nDetectors
+            self.iLastColInPatch = -delta
+            self.iLastCol = nDetectors
+            bEdge = True
+        else:
+            self.iLastColInPatch = self.side
+
+        if bEdge:
+            self.nEdge += 1
+            if self.nEdge <= 10:
+                print(f'===>>> Edge {self.nEdge}')
         self.Add(table, delta)
-        #return f'R-Circ{self.radius}'
 
     def Dump(self):
         sfName = f'Patch_radius{self.radius}'
         Config.WriteMatrixToFile(self.raster, sfName)
 
+"""
 class CRectangularPatch(CPatch):
-    """
-    """
+
     def __init__(self):
         CPatch.__init__(self, 'Rectangle')
         self.iRowAfter = 1
@@ -107,26 +147,23 @@ class CRectangularPatch(CPatch):
             log.Log(f'<Rect::AddRandom> first [{self.iFirstRow},{self.iFirstCol}] after [{self.iRowAfter},{self.iColAfter}] {delta=:.9f}')
         self.Add(table, delta)
         #return 'R-Rectangle'
-       
+        """
 
 def main():
     global verbosity
     Config.OnInitRun()
+    log = CLog('TestPatch')
     verbosity = 3
     print('*** Test Patch - Circular and Rectangular')
     circ = CCircularPatch(200)
     circ.Dump()
     circ = CCircularPatch(10)
     circ.Dump()
-    rect = CRectangularPatch()
-    tab = torch.ones([nRows,nDetectors])
-    for i in range(10):
+    #rect = CRectangularPatch()
+    tab = torch.ones([1,nRows,nDetectors])
+    for i in range(100):
         delta = (random.random() - 0.5) / 100
-        iType = random.randint(0,10)
-        if iType < 7:
-            circ.AddRandom(tab, delta)
-        else:
-            rect.AddRandom(tab, delta)
+        circ.AddRandom(tab, delta, log)
         sfName = f'd:/dump/PatcTest_table_{i}'
         Config.WriteMatrixToFile(tab, sfName)
 

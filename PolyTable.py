@@ -14,7 +14,7 @@ import numpy as np
 
 import Config
 from Utils import VerifyDir, VerifyJointDir
-from Patch import CCircularPatch, CRectangularPatch
+from Patch import CCircularPatch
 from Log import CLog
 
 nDetectors = 688
@@ -22,7 +22,7 @@ nRows = 192
 nLayers = 3
 nDetsPerReading = nDetectors * nRows
 
-patchSize = 20
+aPatchSizes = [10,20,30]
 circPC = 100
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
@@ -31,6 +31,8 @@ sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
 #sfAiTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0_ai.bin'
 #sfAiTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1_ai.bin'
 sDebugSaveDir = ''
+
+MIN_DELTA = 0.05
 
 verbosity = 1
 
@@ -65,9 +67,12 @@ class CPolyTable:
         self.nTry = 0
         self.nBetter = 0
         self.sumBetter = 0
-        self.cPatch = CCircularPatch(patchSize)
-        self.rPatch = CRectangularPatch()
-        self.lastPatch = self.cPatch
+        self.aPatches = []
+        for ps in aPatchSizes:
+            self.aPatches.append(CCircularPatch(ps))
+        #self.cPatch = CCircularPatch(patchSize)
+        #self.rPatch = CRectangularPatch()
+        self.lastPatch = self.aPatches[0]
         self.iDebugSave = 0
 
     def LoadBest(self):
@@ -116,21 +121,34 @@ class CPolyTable:
 
     def Restore(self):
         self.SaveTable(self.table)
+        
+    def GetRandomDelta(self):
+        delta = random.random() - 0.5
+        if abs(delta) < MIN_DELTA:
+            if delta < 0:
+                delta = -MIN_DELTA
+            else:
+                delta = MIN_DELTA
+                
+        return delta / 1000
 
     def TryRandomTableStep(self):
         
         self.nTry += 1         
         self.tempTable = self.table.clone().detach()
-        self.delta = (random.random() - 0.5) / 1000
-        
-        iType = random.randint(0,99)
+        self.delta = self.GetRandomDelta()
+
+        iPatch = random.randint(0,len(self.aPatches)-1)
+        self.lastPatch = self.aPatches[iPatch]
+        """
         if iType < circPC:
             self.lastPatch = self.cPatch
         else:
             self.lastPatch = self.rPatch
+            """
             
         if self.log:
-            self.log.Log(f'<TryRandomTableStep> {iType=}, {self.delta=}')
+            self.log.Log(f'<TryRandomTableStep> {iPatch=}, {self.delta=}')
             
         self.lastPatch.AddRandom(self.tempTable, self.delta, self.log)
         self.SaveTable(self.tempTable)

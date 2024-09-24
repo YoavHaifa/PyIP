@@ -12,6 +12,7 @@ import sys
 import Config
 
 verbose = 1
+count = 0
 
 sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
 #sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
@@ -27,12 +28,14 @@ lParams = ['-exec', 'OfflineRecon',
            'ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv']
 
 def RunRecon():
+    global count
+    count += 1
     Config.Start('Recon')
     #args = [sHSProg, sParams]
     args = [sHSProg]
     args.extend(lParams)
-    if verbose > 1:
-        print('*** Calling Recon')
+    if verbose > 1 or count <= 10:
+        print(f'*** Calling Recon {count}')
     if verbose > 2:
         print(args)
     subprocess.run(args)

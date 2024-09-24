@@ -22,7 +22,7 @@ minPerRadius = 300
 maxPerRadius = 300
 nImages = 280
 
-nSamplesPerRadius = 48
+nSamplesPerRadius = 12
 
 bTiming = True
 verbosity = 1
@@ -42,8 +42,8 @@ class CSample:
         self.nImages = nImages
         self.nRadiusesPerImage = 255
         self.nSamplesPerRadius = nSamplesPerRadius
-        self.samplesLines = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.int)
-        self.samplesCols = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.int)
+        self.samplesLines = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.long)
+        self.samplesCols = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.long)
         self.nValidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int)
         self.nInvalidSamples = torch.zeros([self.nImages,self.nRadiusesPerImage], dtype=torch.int)
         self.AddSamples(maskVolume.mask, radiusImage)

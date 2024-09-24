@@ -18,9 +18,9 @@ sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 16
+iExperiment = 17
 sExp = 'RangeHQCirc'
-#sExp = 'try'
+sExp = 'try'
 sBaseDir = ''
 sLogDir = 'd:/Log'
 sVolDir = ''
