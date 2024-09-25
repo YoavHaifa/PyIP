@@ -56,13 +56,15 @@ def VeifyReconRunning():
         sys.exit()
 
 def main():
+    n = 1
     print('*** Verify that recon is running')
     VeifyReconRunning()
     print('*** Run Original Recon by Host Simulator Command Line')
     RunOriginalRecon()
     print('Nominal Recon Finished')
-    RunAiRecon()
-    print('AI Recon Finished')
+    if n > 1:
+        RunAiRecon()
+        print('AI Recon Finished')
  
 if __name__ == '__main__':
     main()

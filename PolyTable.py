@@ -26,10 +26,6 @@ aPatchSizes = [10,20,30]
 circPC = 100
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
-#sfNominalTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0.bin'
-#sfNominalTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1.bin'
-#sfAiTab0 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT0_ai.bin'
-#sfAiTab1 = 'PolyCalibration_kVp120_FOV250_Collimator140_XRT1_ai.bin'
 sDebugSaveDir = ''
 
 MIN_DELTA = 0.05

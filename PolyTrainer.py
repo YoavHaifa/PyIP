@@ -26,8 +26,8 @@ from Log import CLog
 nDetectors = 688
 nRows = 192
 nLayers = 3
-deltaSave = 100
-deltaSample = 100
+deltaSave = 200
+deltaSample = 400
 
 BIG_SCORE = 1000000.0
 
@@ -190,8 +190,8 @@ class CPolyTrainer:
         self.nNotBetterPerSample += 1
         self.tableGenerator.OnNotBetter()
         print(f'--- <<< New table NOT better {self.nNotBetterConsecutive}')
-        if self.nNotBetterPerSample % 10 == 0:
-            print(f'--- <<< New table NOT better {score=} >= {self.bestScore} ({diff=})')
+        #if self.nNotBetterPerSample % 10 == 0:
+        #    print(f'--- <<< New table NOT better {score=} >= {self.bestScore} ({diff=})')
         if self.sNext == 'random':
             self.sNext = 'OnFailure'
         else:
