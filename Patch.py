@@ -15,34 +15,102 @@ from Log import CLog
 nDetectors = 688
 nRows = 192
 
+ratioThreshold = 0.15
+deltaFactor = 0.8
+
 verbosity = 1
+
+class CPatchStat:
+    """
+    Base class for different patches
+    """
+    def __init__(self, best, delta, iFirst):
+        self.firstBest = best
+        self.lastBest = best
+        self.delta = delta
+        self.iFirst = iFirst
+        self.nTry = 0
+        self.nBetter = 0
+        self.nFailed = 0
+        self.sumGain = 0
+                
+    def OnScoreBetter(self, score, gain):
+        self.nTry += 1
+        self.nBetter += 1
+        self.lastBest = score
+        self.sumGain += gain
+
+    def OnScoreNotBetter(self):
+        self.nTry += 1
+        self.nFailed += 1
+        
+    def BetterRatio(self):
+        if self.nTry < 1:
+            return 0
+        return float(self.nBetter) / self.nTry
+
+    def OnEnd(self, sfLog):
+        ratio = self.BetterRatio()
+        with open(sfLog, 'a') as f:
+            s = f'{self.delta}, {self.iFirst}, {self.nTry}, {self.nBetter}, {self.firstBest}, {self.lastBest}, {ratio:.2f}'
+            f.write(f'{s}\n')
+            #print(f'<CPatchStat::OnEnd> {s}')
+        
 
 class CPatch:
     """
     Base class for different patches
     """
-    def __init__(self, sName):
+    def __init__(self, sName, best, delta):
         self.sName = sName
+        self.firstBest = best
+        self.lastBest = best
+        self.firstDelta = delta
+        self.delta = delta
+        
         self.iFirstRow = 0
         self.iFirstCol = 0
         self.nTry = 0
         self.nBetter = 0
-        self.sumBetter = 0
         self.nEdge = 0
+        self.sumGain = 0
+        self.stat = CPatchStat(best, delta, self.nTry)
 
-    def OnBetter(self, d):
-        self.nBetter += 1
-        self.sumBetter += d
-   
+    def OnNewScore(self, prevBest, score):
+        gain = prevBest - score
+        if gain > 0:
+            self.nBetter += 1
+            self.lastBest = score
+            self.sumGain += gain
+            self.stat.OnScoreBetter(score, gain)
+            
+            # Log all better transactions
+            ratio = self.stat.BetterRatio()
+            with open(self.sfLog, 'a') as f:
+                f.write(f'{self.delta}, {self.nTry}, {self.nBetter}, {score}, {ratio:.2f}\n')
+                
+        else:
+            self.lastBest = prevBest # Might have improved due to another patch/table
+            self.stat.OnScoreNotBetter()
+            
+        if self.stat.nTry == Config.nToEvaluate:
+            ratio = self.stat.BetterRatio()
+            if ratio < ratioThreshold:
+                self.delta = abs(self.delta) * deltaFactor
+                print(f'\n<{self.sName}> Delta reduced to {self.delta}')
+            self.stat.OnEnd(self.sfLogStat)
+            self.stat = CPatchStat(self.lastBest, self.delta, self.nTry)
+  
 
 class CCircularPatch(CPatch):
     """
     Class Patch to add to Poly Table
     """
-    def __init__(self, radius):
+    def __init__(self, best, radius, delta, iXrt):
         """
         """
-        CPatch.__init__(self, f'Patch{radius}')
+        CPatch.__init__(self, f'Patch{radius}-{iXrt}', best, delta)
+        
         self.radius = radius
         self.diameter = radius * 2
         self.side = self.diameter + 2
@@ -61,23 +129,35 @@ class CCircularPatch(CPatch):
                 distance = math.sqrt(dx2+dy2)
                 if distance < radius:
                     self.raster[iLine, iCol] =1 - distance / radius
+                    
+        self.sfLog = Config.LogFileName(f'CircPatchAll_xrt{iXrt}_radius{radius}.csv')
+        with open(self.sfLog, 'w') as f:
+            f.write('delta, nTry, nBetter, best, ratio\n')
+            
+        self.sfLogStat =  Config.LogFileName(f'CircPatchStat_xrt{iXrt}_radius{radius}.csv')
+        with open(self.sfLogStat, 'w') as f:
+            f.write('delta, iFirst, nTry, nBetter, start, best, ratio\n')
 
-    def Add(self, table, delta):
+    def Add(self, table):
         self.nTry += 1
         if verbosity > 1:
-            print(f'Add Circular {self.nTry}, {delta=}')
+            print(f'Add Circular {self.nTry}, {self.delta=}')
             print(f'table[{self.iFirstRow}:{self.iLastRow}, {self.iFirstCol}:{self.iLastCol}]')
             print(f'patch[{self.iFirstRowInPatch}:{self.iLastRowInPatch}, {self.iFirstColInPatch}:{self.iLastColInPatch}]')
-        add = self.raster[self.iFirstRowInPatch:self.iLastRowInPatch,self.iFirstColInPatch:self.iLastColInPatch] * delta
+        add = self.raster[self.iFirstRowInPatch:self.iLastRowInPatch,self.iFirstColInPatch:self.iLastColInPatch] * self.delta
         table[0,self.iFirstRow:self.iLastRow,self.iFirstCol:self.iLastCol] += add
        
-    def AddRandom(self, table, delta, log):
+    def AddOnFailure(self, table):
+        self.delta = - self.delta
+        self.Add(table)
+        
+    def AddRandom(self, table, log):
         halfSide = int(self.side / 2)
         bEdge = False
         self.iCenterRow = random.randint(0, nRows-1)
         self.iCenterCol = random.randint(0, nDetectors-1)
         if log:
-            log.Log(f'<Circ::AddRandom> center [{self.iFirstRow},{self.iCenterCol}] {delta=:.9f}')
+            log.Log(f'<Circ::AddRandom> center [{self.iFirstRow},{self.iCenterCol}] {self.delta=:.9f}')
             
         self.iFirstRow = self.iCenterRow - halfSide
         if self.iFirstRow < 0:
@@ -115,9 +195,9 @@ class CCircularPatch(CPatch):
 
         if bEdge:
             self.nEdge += 1
-            if self.nEdge <= 10:
+            if verbosity > 1 and self.nEdge <= 10:
                 print(f'===>>> Edge {self.nEdge}')
-        self.Add(table, delta)
+        self.Add(table)
 
     def Dump(self):
         sfName = f'Patch_radius{self.radius}'
@@ -155,15 +235,15 @@ def main():
     log = CLog('TestPatch')
     verbosity = 3
     print('*** Test Patch - Circular and Rectangular')
-    circ = CCircularPatch(200)
+    circ = CCircularPatch(100, 200, 0.001, 0)
     circ.Dump()
-    circ = CCircularPatch(10)
+    circ = CCircularPatch(100, 10, 0.002, 1)
     circ.Dump()
     #rect = CRectangularPatch()
     tab = torch.ones([1,nRows,nDetectors])
     for i in range(100):
-        delta = (random.random() - 0.5) / 100
-        circ.AddRandom(tab, delta, log)
+        #delta = (random.random() - 0.5) / 100
+        circ.AddRandom(tab, log)
         sfName = f'd:/dump/PatcTest_table_{i}'
         Config.WriteMatrixToFile(tab, sfName)
 

@@ -22,7 +22,8 @@ nRows = 192
 nLayers = 3
 nDetsPerReading = nDetectors * nRows
 
-aPatchSizes = [10,20,30]
+#aPatchSizes = [10,20,30]
+aPatchSizes = [20]
 circPC = 100
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
@@ -62,14 +63,17 @@ class CPolyTable:
             self.log.Log(f'<CPolyTable::__init__> avg {self.prevAvg}')
         self.nTry = 0
         self.nBetter = 0
-        self.sumBetter = 0
+        self.sumGain = 0
         self.aPatches = []
-        for ps in aPatchSizes:
-            self.aPatches.append(CCircularPatch(ps))
-        #self.cPatch = CCircularPatch(patchSize)
-        #self.rPatch = CRectangularPatch()
-        self.lastPatch = self.aPatches[0]
         self.iDebugSave = 0
+        
+    def InitPatches(self, best):
+        if len(self.aPatches) > 0:
+            return
+        
+        for ps in aPatchSizes:
+            self.aPatches.append(CCircularPatch(best, ps, Config.firstDelta, self.iXrt))
+        self.lastPatch = self.aPatches[0]
 
     def LoadBest(self):
         if not path.isfile(self.sfBestFullName):
@@ -117,7 +121,7 @@ class CPolyTable:
 
     def Restore(self):
         self.SaveTable(self.table)
-        
+
     def GetRandomDelta(self):
         delta = random.random() - 0.5
         if abs(delta) < MIN_DELTA:
@@ -132,40 +136,40 @@ class CPolyTable:
         
         self.nTry += 1         
         self.tempTable = self.table.clone().detach()
-        self.delta = self.GetRandomDelta()
+        #self.delta = self.GetRandomDelta()
 
-        iPatch = random.randint(0,len(self.aPatches)-1)
-        self.lastPatch = self.aPatches[iPatch]
-        """
-        if iType < circPC:
-            self.lastPatch = self.cPatch
+        nPatches = len(self.aPatches)
+        if nPatches > 1:
+            iPatch = random.randint(0,nPatches-1)
+            self.lastPatch = self.aPatches[iPatch]
+            if self.log:
+                self.log.Log(f'<TryRandomTableStep> {iPatch=}')
         else:
-            self.lastPatch = self.rPatch
-            """
-            
-        if self.log:
-            self.log.Log(f'<TryRandomTableStep> {iPatch=}, {self.delta=}')
-            
-        self.lastPatch.AddRandom(self.tempTable, self.delta, self.log)
-        self.SaveTable(self.tempTable)
+            self.lastPatch = self.aPatches[0]
 
-    def TrySamePatch(self, delta):
+        self.lastPatch.AddRandom(self.tempTable, self.log)
+        self.SaveTable(self.tempTable)
+        return self.lastPatch.delta
+
+    def TrySamePatch(self):
         self.nTry += 1         
         self.tempTable = self.table.clone().detach()
-        self.delta = delta
-        self.lastPatch.Add(self.tempTable,self.delta)
+        self.lastPatch.Add(self.tempTable)
         self.SaveTable(self.tempTable)
 
     def TryOnFailure(self):
-        self.TrySamePatch(-self.delta)
-        
-    def TryOnSuccess(self):
-        self.TrySamePatch(self.delta * 2)
+        self.nTry += 1         
+        self.tempTable = self.table.clone().detach()
+        self.lastPatch.AddOnFailure(self.tempTable)
+        self.SaveTable(self.tempTable)
+        return self.lastPatch.delta
 
-    def OnBetter(self, d):
+    def OnNewScore(self, prevBest, newScore):
+        self.lastPatch.OnNewScore(prevBest, newScore)
+
+    def OnBetter(self, gain):
         self.nBetter += 1
-        self.sumBetter += d
-        self.lastPatch.OnBetter(d)
+        self.sumGain += gain
         
         # Make the last temp new nominal
         self.table = self.tempTable.clone().detach()
@@ -225,6 +229,9 @@ class CPolyTables:
         self.nBetter = 0
         self.nNotBetter = 0
         
+    def InitPatches(self, best):
+        for table in self.tables:
+            table.InitPatches(best)
 
     def OnEndTraining(self):
         self.Save()
@@ -260,26 +267,33 @@ class CPolyTables:
         if verbosity > 1:
             print(f'<TryRandomTableStep> T{self.iCurTab}')
 
-        self.tables[self.iCurTab].TryRandomTableStep()
-        self.delta = self.tables[self.iCurTab].delta
+        self.sLast = 'R'
+        return self.tables[self.iCurTab].TryRandomTableStep()
+        #self.delta = self.tables[self.iCurTab].delta
     
     def TryOnFailure(self):
         self.nTry += 1
-        self.tables[self.iCurTab].TryOnFailure()
-        self.delta = self.tables[self.iCurTab].delta
+        self.sLast = 'F'
+        return self.tables[self.iCurTab].TryOnFailure()
+        #self.delta = self.tables[self.iCurTab].delta
     
+    """
     def TryOnSuccess(self):
         self.nTry += 1
         self.tables[self.iCurTab].TryOnSuccess()
         self.delta = self.tables[self.iCurTab].delta
+        """
+
+    def OnNewScore(self, prevBest, newScore):
+        self.tables[self.iCurTab].OnNewScore(prevBest, newScore)
+        gain = prevBest - newScore
+        if gain > 0:
+            self.nBetter += 1
+            self.tables[self.iCurTab].OnBetter(gain)
+        else:
+            self.nNotBetter += 1
+            self.tables[self.iCurTab].Restore()
         
-    def OnBetter(self, d):
-        self.nBetter += 1
-        self.tables[self.iCurTab].OnBetter(d)
-        
-    def OnNotBetter(self):
-        self.nNotBetter += 1
-        self.tables[self.iCurTab].Restore()
         
 """            
     def SaveDebug(self, iXrt):
@@ -313,6 +327,7 @@ def TestSingleTable():
     print('*** Check Poly Table Class')
     log = CLog('TestSingleTable')
     tab0 = CPolyTable(0, log)
+    tab0.InitPatches(100)
     #tab0.Save()
     tab0.OnBetter(0)
     tab0.Log(log, 'Init')
@@ -328,9 +343,9 @@ def TestSingleTable():
     tab0.TryRandomTableStep()
     tab0.OnBetter(0.4)
     tab0.Log(log, 'random added')
-    tab0.TryOnSuccess()
-    tab0.OnBetter(0.1)
-    tab0.Log(log, 'On Success')
+    #tab0.TryOnSuccess()
+    #tab0.OnBetter(0.1)
+    #tab0.Log(log, 'On Success')
 
 def TestTables():
     print('*** Check Poly Tables Class')
@@ -342,6 +357,7 @@ def TestTables():
     tables.iCurTab = 1
     tables.SaveDebug()
     tables.Log(log,'Start')
+    tables.InitPatches(100)
     
     for i in range(4):
         tables.TryRandomTableStep()
@@ -356,8 +372,8 @@ def main():
     Config.OnInitRun()
     sDebugSaveDir = 'd:/Dump'
     
-    #TestSingleTable()
-    TestTables()
+    TestSingleTable()
+    #TestTables()
     
     #TestTables()
 

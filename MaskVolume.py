@@ -8,6 +8,7 @@ Used to create samples of relevant voxels.
 
 import torch
 
+import Config
 
 threshMin = 850
 threshMax = 1150
@@ -34,24 +35,25 @@ class CMaskVolume:
        
     def Peel(self, mask):
         # Peel Vertical
-        maskPre = mask[:,0:510,:]
-        maskPost = mask[:,2:512,:]
+        matrix = Config.matrix
+        maskPre = mask[:,0:matrix-2,:]
+        maskPost = mask[:,2:matrix,:]
         #print(f'{maskPre.shape=}')
         #print(f'{maskPost.shape=}')
-        center = mask[:,1:511,:]
+        center = mask[:,1:matrix-1,:]
         center = torch.where(maskPre > 0, center, 0)
         center = torch.where(maskPost > 0, center, 0)
-        mask[:,1:511,:] = center
+        mask[:,1:matrix-1,:] = center
         
         #Peel Horizontal
-        maskUp = mask[:,:,0:510]
-        maskDown = mask[:,:,2:512]
+        maskUp = mask[:,:,0:matrix-2]
+        maskDown = mask[:,:,2:matrix]
         #print(f'{maskPre.shape=}')
         #print(f'{maskPost.shape=}')
-        center = mask[:,:,1:511]
+        center = mask[:,:,1:matrix-1]
         center = torch.where(maskUp > 0, center, 0)
         center = torch.where(maskDown > 0, center, 0)
-        mask[:,:,1:511] = center
+        mask[:,:,1:matrix-1] = center
         return mask
 
         

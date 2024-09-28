@@ -21,7 +21,7 @@ def testReadAndWrite():
     nImages = len(origImages)
     origCentral = origImages[int(nImages/2),:,:] 
     print('nImages {}, image size {}'.format(nImages, origCentral.size()))
-    WriteImage(origCentral, 'Try/central', 512, 512)
+    WriteImage(origCentral, 'Try/central', matrix, matrix)
 
     plt.matshow(origCentral, cmap='gray')
     plt.show()  

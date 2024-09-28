@@ -20,7 +20,7 @@ maxImages = 1000
 
 verbosity = 1
 
-sSavedVolume = 'BP_PolyAI_Output_width512_height512_save4000.float.rvol'
+#sSavedVolume = 'BP_PolyAI_Output_width512_height512_save4000.float.rvol'
 
 class CPolyScorer:
     """
@@ -202,12 +202,14 @@ def main():
     scorer.Log()
     print(f'{score=}')
     
+    """
     start = time.monotonic()
     score = scorer.Score(sSavedVolume, sample)
     scorer.Log()
     print(f'{score=}')
     elapsed = time.monotonic() - start
     print(f"<scorer.Score> Elapsed time for last scoring: {elapsed:.3f} seconds")
+    """
     
      
 

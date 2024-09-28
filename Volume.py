@@ -15,6 +15,8 @@ from Utils import FPrivateName
 from PyString import GetValue, GetValue2, SetValue, RemoveValue, AddDesc
 from Image import CImage
 
+defaultMatrix = 512
+
 debug = 0
 verbosity = 1
 
@@ -57,8 +59,8 @@ class CVolume():
             self.nLines = mat
             self.nCols = mat
         else:
-            self.nLines = 512
-            self.nCols = 512
+            self.nLines = defaultMatrix
+            self.nCols = defaultMatrix
             nCols1 =  GetValue(fileName, '_width')
             if nCols1 > 0:
                 self.nCols = nCols1

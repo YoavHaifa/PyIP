@@ -34,20 +34,21 @@ class CRadiusImage:
             print(f"<CRadiusImage::__init__(> Elapsed time: {elapsed:.3f} seconds")
 
     def ComputeRadiusPerPixel(self):
-        self.image = CImage(512,512,bInit=True)
-        centerX = 255.5
-        centerY = 255.5
+        matrix = Config.matrix
+        self.image = CImage(matrix,matrix,bInit=True)
+        centerX = (matrix-1.0) / 2.0
+        centerY = centerX
         
-        xVector = torch.arange(0,512)
+        xVector = torch.arange(0,matrix)
         xDiff = xVector - centerX
         xDiff2 = torch.pow(xDiff,2)
         
-        for y in range(512):
+        for y in range(matrix):
             yDiff2 = (y-centerY)**2
             sumVec = xDiff2 + yDiff2
             self.image.pData[y] = torch.sqrt(sumVec)
             
-            #for x in range(512):
+            #for x in range(matrix):
             #    radius = math.sqrt(yDiff2 + xDiff2[x])
             #    image.pData[y,x] = radius
             
@@ -56,13 +57,14 @@ class CRadiusImage:
         self.image.WriteToFile("RadiusImage")
  
     def CountPixelsPerRadius(self):
+        matrix = Config.matrix
         self.maxRadius = self.image.pData.max()
         self.nRadiuses = self.maxRadius + 1
         if verbosity > 1:
             print(f'Max Radius {self.maxRadius}')
         self.countPerRadius = torch.zeros(self.nRadiuses, dtype=torch.int16)
-        for iLine in range(512):
-            for iCol in range(512):
+        for iLine in range(matrix):
+            for iCol in range(matrix):
                 self.countPerRadius[self.image.pData[iLine,iCol]] += 1 
         
         f = Config.OpenLog('CountPerRadius.csv')
@@ -75,13 +77,14 @@ class CRadiusImage:
             print(f'Max pixels per radius {self.maxPixelsPerRadius}')
      
     def MapRadiusToPixels(self):
+        matrix = Config.matrix
         if verbosity > 1:
             print('<MapRadiusToPixels>')
         self.rad2PixLine = torch.zeros([self.nRadiuses, self.maxPixelsPerRadius+1], dtype=torch.int16)
         self.rad2PixCol = torch.zeros([self.nRadiuses, self.maxPixelsPerRadius+1], dtype=torch.int16)
         countPerRad = torch.zeros(self.nRadiuses, dtype=torch.int16)
-        for iLine in range(512):
-            for iCol in range(512):
+        for iLine in range(matrix):
+            for iCol in range(matrix):
                 radius = self.image.pData[iLine,iCol]
                 iIn = countPerRad[radius]
                 self.rad2PixLine[radius, iIn] = iLine

@@ -39,8 +39,13 @@ class CSample:
             DESCRIPTION.
 
         """
+        global nSamplesPerRadius
+    
+        if Config.sExp == 'try':
+            nSamplesPerRadius = 12
+            
         self.nImages = nImages
-        self.nRadiusesPerImage = 255
+        self.nRadiusesPerImage = int(Config.matrix / 2) - 1
         self.nSamplesPerRadius = nSamplesPerRadius
         self.samplesLines = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.long)
         self.samplesCols = torch.zeros([self.nImages,self.nRadiusesPerImage,self.nSamplesPerRadius], dtype=torch.long)

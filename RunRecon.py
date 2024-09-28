@@ -14,6 +14,8 @@ import Config
 verbose = 1
 count = 0
 
+nToPrint = 5
+
 sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
 #sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
 #sParams = '-exec OfflineRecon -ScanId 80c39ec3 -shotnum 0 -data "E:\Data\Poly_Calib\CenteredBig250\Scan_Plan" -transfer "d:\ReconTest\Recon\TransPointer.txt" -output d:\ReconTest\Output -tlog f:\Log\ReconUT\\MultiTest_Debug_timing_0042.csv -test xx -reconparam ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv'
@@ -34,7 +36,7 @@ def RunRecon():
     #args = [sHSProg, sParams]
     args = [sHSProg]
     args.extend(lParams)
-    if verbose > 1 or count <= 10:
+    if verbose > 1 or count <= nToPrint:
         print(f'*** Calling Recon {count}')
     if verbose > 2:
         print(args)
@@ -56,7 +58,7 @@ def VeifyReconRunning():
         sys.exit()
 
 def main():
-    n = 1
+    n = 2
     print('*** Verify that recon is running')
     VeifyReconRunning()
     print('*** Run Original Recon by Host Simulator Command Line')

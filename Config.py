@@ -17,10 +17,17 @@ sAiFlagRemoved = 'd:/Config/Poly/GetAiTable_x.txt'
 sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
+matrix = 256
+firstDelta = 0.001
+nToEvaluate = 200
+nToEvaluateTry = 10
+
+
 sfRoot = 'd:/PolyCalib'
-iExperiment = 18
-sExp = 'Mat250'
-sExp = 'try'
+iExperiment = 23
+sExp = 'Patch20_DecDelta'
+#sExp = 'try'
+bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
 sVolDir = ''
@@ -32,16 +39,23 @@ gLog = None
 
 verbosity = 1
 
+def SetBPOutputFileName(sPrefix):
+    s = sPrefix + f'_Output_width{matrix}_height{matrix}'
+    if matrix == 256:
+        s = s + '_zoom2'
+    s = s + '.float.rvol'
+    s = path.join(sVolDir, s)
+    return s
+
 def OnInitRun(sSpecialVolDir=None):
     global sBaseDir, sLogDir, sVolDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
-    global sBestTabsDir
+    global sBestTabsDir, nToEvaluate
     
     if bInitialized:
         print('Attempt to call <OnInitRun> twice. Exiting...')
         sys.exit()
     bInitialized = True
-    
     
     VerifyDir(sfRoot)
     VerifyDir('d:/Config')
@@ -64,10 +78,16 @@ def OnInitRun(sSpecialVolDir=None):
     else:
         sVolDir = VerifyJointDir(sBaseDir, 'Vol')
     
-    sfVolumeNominal = path.join(sVolDir, sfVolumeNominal)
-    sfVolumeAi = path.join(sVolDir, sfVolumeAi)
+    sfVolumeNominal = SetBPOutputFileName('BP_nom')
+    sfVolumeAi = SetBPOutputFileName('BP_PolyAI')
+    print(f'{sfVolumeNominal=}')
+    print(f'{sfVolumeAi=}')
     
     sBestTabsDir = VerifyJointDir(sBaseDir, 'BestTabs')
+    VerifyJointDir(sBaseDir, 'Manualy Saved Results')
+    
+    if sExp == 'try':
+        nToEvaluate = nToEvaluateTry
 
     
 def LogFileName(sfName):
@@ -117,10 +137,12 @@ def SaveAiVolume(iSave):
         TryRename(sfVolumeAi, sfSaveName)
 
 def Clean():
-    DeleteFilesInDir(sVolDir)
-    DeleteFilesInDir(sLogDir)
-    #DeleteFilesInDir(sTabDir0)
-    #DeleteFilesInDir(sTabDir1)
+    if bDeleteOnStart:
+        DeleteFilesInDir(sVolDir)
+        DeleteFilesInDir(sLogDir)
+        DeleteFilesInDir(sBestTabsDir)
+        #DeleteFilesInDir(sTabDir1)
+        
 
 
 def WriteMatrixToFile(matrix, sfName, sfType='float'):
