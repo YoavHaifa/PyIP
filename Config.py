@@ -24,7 +24,7 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 23
+iExperiment = 24
 sExp = 'Patch20_DecDelta'
 #sExp = 'try'
 bDeleteOnStart = False

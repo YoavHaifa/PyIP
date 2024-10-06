@@ -15,7 +15,7 @@ from Log import CLog
 nDetectors = 688
 nRows = 192
 
-ratioThreshold = 0.15
+ratioThreshold = 0.10
 deltaFactor = 0.8
 
 verbosity = 1
