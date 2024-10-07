@@ -6,8 +6,8 @@ Poly Scorer - Compute the score from volume and sample
 """
 
 import torch
-import time
-import sys
+#import time
+#import sys
 
 import Config
 from Volume import CVolume

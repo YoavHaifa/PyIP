@@ -24,9 +24,9 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 24
-sExp = 'Patch20_DecDelta'
-#sExp = 'try'
+iExperiment = 25
+sExp = 'Impulse_Create'
+sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
