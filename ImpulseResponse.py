@@ -21,8 +21,8 @@ iFirstRow = 0
 iFirstDet = 0
 iDeltaRow = 10
 iDeltaDet = 10
-nRunRows = 2 
-nRunDets = 3
+nRunRows = 21
+nRunDets = 70
 
 sfIndices = 'd:/Config/Poly/Impulse.txt'
 
