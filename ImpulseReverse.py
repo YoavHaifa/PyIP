@@ -14,11 +14,13 @@ from Utils import VerifyJointDir
 nRows = 192
 nDets = 688
 detMargins = 170
+nImages = 280
+maxRadius = 260
 
 sTableDir = 'D:/PolyCalib/ImpulseResponseTab'
 sTableDirPrints = ''
 
-verbosity = 5
+verbosity = 1
 
 class CInputTable:
     """
@@ -91,28 +93,67 @@ class CInputTables:
         deltaIm = self.imTab.pTab - iImage
         deltaRad = self.radTab.pTab - iRad
         dist = torch.square(deltaIm) + torch.square(deltaRad)
-        print(f'{dist.size()=}')
+        #print(f'{dist.size()=}')
         minResult = dist.min()
         ind = dist.argmin()
-        iRow = int(ind/self.nCols)
-        iCol = ind%self.nCols
+        iRow = int(ind / self.nCols)
+        iCol = ind % self.nCols
         if verbosity > 2:
             print(f'{iImage=}, {iRad=}, {minResult=} at [{iRow}, {iCol}]')
             image = self.imTab.pTab[iRow,iCol]
             radius = self.radTab.pTab[iRow,iCol]
             print(f'Original: {image=:.2f}, {radius=:.2f}')
+        return iRow, iCol
         
+def SaveInverseTables(iTube, tab, sName):
+    spName = f'InverseIR_Tube{iTube}_{sName}_per_image_and_radius_width{maxRadius}_height{nImages}_dzoom2.short.rtab'
+    sfName = path.join(sTableDirPrints, spName)
+    
+    npTable = tab.numpy()
+    with open (sfName, 'wb') as file:
+        file.write(npTable.tobytes())
+    if verbosity > 0:
+        print('Table Saved:', sfName)
+        
+def CreateInverseTables(iTube):
+    print('<CreateInverseTables>', iTube)
+    rowTab = torch.zeros([nImages, maxRadius], dtype=torch.int16)
+    colTab = torch.zeros([nImages, maxRadius], dtype=torch.int16)
+    inTabs = CInputTables(iTube)
+    iFirstIm = 0
+    iFirstRad = 0
+    for iIm in range (nImages):
+        if iIm % 28 == 0:
+            print('image', iIm)
+        for iR in range(maxRadius):
+            iImage = iFirstIm + iIm
+            iRad = iFirstRad + iR
+            iRow, iCol = inTabs.FindSource(iImage,iRad)
+            rowTab[iImage,iRad] = iRow
+            colTab[iImage,iRad] = iCol
+            #print(f'{iImage}, {iRad} <== {iRow}, {iCol}')
+            
+    SaveInverseTables(iTube, rowTab, 'row')
+    SaveInverseTables(iTube, colTab, 'col')
 
+def CheckFindSource():
+    global verbosity
+    print('*** ===>>> Check Find Source')
+    verbosity = 5
+    iTube = 0
+    inTabs = CInputTables(iTube)
+    for im in range(2):
+        for r in range(2):
+            inTabs.FindSource(100+im,20+r)
+    verbosity = 1
+    
 def main():
     global sTableDirPrints
-    print('*** ===>>> Create reverse impulse response table')
-    iTube = 0
+    print('*** ===>>> Create inverse impulse response table')
     sTableDirPrints = VerifyJointDir(sTableDir, 'Prints')
-    inTabs = CInputTables(iTube)
-    for im in range(3):
-        for r in range(3):
-            inTabs.FindSource(100+im,20+r)
-
+    CheckFindSource()
+    for iTube in range(1):
+        CreateInverseTables(iTube+1)
     
 if __name__ == '__main__':
     main()
