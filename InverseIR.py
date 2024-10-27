@@ -53,7 +53,7 @@ class CInverseIRTablesPerTube:
 
     def Inverse(self, iImage, iRad):
         iRow = self.rowTab.pTab[iImage, iRad]
-        iCol = self.colTab.pTab[iImage, iRad]
+        iCol = self.colTab.pTab[iImage, iRad] + detMargins
         return iRow, iCol
 
 def CheckInverse(tabs):

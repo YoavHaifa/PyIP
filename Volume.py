@@ -9,6 +9,7 @@ from os import path
 import numpy as np
 import torch
 import sys
+import math
 
 import Config
 from Utils import FPrivateName
@@ -168,6 +169,8 @@ class CVolume():
 
     def Print(self):
         print(f'CVolume {self.name} with {self.nImages} images')
+        print(f'{self.pImages.size()=}')
+        print(f'{self.pImages.dtype=}')
         print(f'File name: {self.fName}')
 
     def IsEqual(self, other):
@@ -181,4 +184,18 @@ class CVolume():
             file.write(npVolume.tobytes())
         print(f'<DumpSimilarVolume> saved: {sfName}')
 
+    def FindMaxPosition(self):
+        iMax = self.pImages.argmin()
+        imSize = self.nCols * self.nLines
+        iImage = int(iMax / imSize)
+        iInImage = iMax % imSize
+        iLine = int(iInImage / self.nCols)
+        iCol = iInImage % self.nCols
+        return iImage, iLine, iCol
 
+    def findRadius(self, iLine, iCol):
+        dy = (iLine - self.nLines / 2)
+        dx = (iCol - self.nCols / 2)
+        rad = math.sqrt(dy*dy + dx*dx)
+        return rad
+        
