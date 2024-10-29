@@ -42,23 +42,27 @@ def RunRecon():
         print(args)
     subprocess.run(args)
     Config.End('Recon')
+    VeifyReconRunning(bOnEnd = True)
 
 def RunOriginalRecon():
     Config.SetPolyNominal()
     RunRecon()
 
-def RunAiRecon():
-    Config.SetPolyByAi()
+def RunAiRecon(bDefaultOutput = True):
+    Config.SetPolyByAi(bDefaultOutput)
     RunRecon()
     
-def VeifyReconRunning():
+def VeifyReconRunning(bOnEnd = False):
     bRunning = "AppRunner.exe" in (p.name() for p in psutil.process_iter())
     if not bRunning:
-        print('AppRunner is not running!')
+        if bOnEnd:
+            print('AppRunner crushed!')
+        else:   
+            print('AppRunner is not running!')
         sys.exit()
 
 def main():
-    n = 2
+    n = 1
     print('*** Verify that recon is running')
     VeifyReconRunning()
     print('*** Run Original Recon by Host Simulator Command Line')

@@ -126,9 +126,10 @@ def SetPolyNominal():
     TryRename(sAiFlag, sAiFlagRemoved)
     SetBpDumpFile(sfVolumeNominal)
 
-def SetPolyByAi():
+def SetPolyByAi(bDefaultOutput = True):
     TryRename(sAiFlagRemoved, sAiFlag)
-    SetBpDumpFile(sfVolumeAi)
+    if bDefaultOutput:
+        SetBpDumpFile(sfVolumeAi)
 
 def SaveAiVolume(iSave):
     sfPostfix = f'_save{iSave}.float.rvol'
