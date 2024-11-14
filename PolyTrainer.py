@@ -7,7 +7,7 @@ Poly Trainer Class - responsible for the complete process of training a poly tab
 
 #import os
 from os import path
-#import random
+import random
 #import torch
 #import time
 import sys
@@ -21,7 +21,8 @@ from PolyScorer import CPolyScorer
 from RunRecon import RunAiRecon, RunOriginalRecon, VeifyReconRunning
 from PolyTable import CPolyTables
 from Utils import GetAbortFileName
-from Log import CLog
+from Log import Log, Start, End
+from InverseIR import GInverseByTube
 
 nDetectors = 688
 nRows = 192
@@ -40,6 +41,7 @@ def consolePrint(sLine, sChar):
         print(sLine)
     else:
         print(sChar,end='')
+    Log(sLine)
 
 class CPolyTrainer:
     """
@@ -47,8 +49,9 @@ class CPolyTrainer:
     def __init__(self):
         """
         """
-        Config.gLog = CLog('Trainer')
+        #Config.gLog = CLog('Trainer')
         self.originalScore = BIG_SCORE
+        self.firstOldScore = BIG_SCORE
         self.firstScore = BIG_SCORE
         self.bestScore = BIG_SCORE
         self.nImprovements = 0
@@ -74,8 +77,10 @@ class CPolyTrainer:
         self.nMaxBetter = 10000
         
         self.sfAbort = GetAbortFileName()
-        self.originalScore = self.scorer.Score(Config.sfVolumeNominal, self.sample)
-        self.sNext = 'random'
+        self.originalScore = self.scorer.OldScore(Config.sfVolumeNominal, self.sample)
+        self.sNext = 'targeted'
+        self.bUseRandom = False
+        #self.IIR = CInverseIRTablesPerTubes
 
     def OpenCsv(self, sfName):
         f, sfName = Config.OpenLogGetName(sfName)
@@ -94,7 +99,11 @@ class CPolyTrainer:
     def RunInitialTable(self):
         self.tableGenerator = CPolyTables() # Prepares initial table
         RunAiRecon()
-        self.firstScore = self.scorer.Score(Config.sfVolumeAi, self.sample)
+        self.firstOldScore = self.scorer.OldScore(Config.sfVolumeAi, self.sample)
+        self.firstScore = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
+        s = f'<RunInitialTable> first score {self.firstScore}'
+        print(s)
+        Log(s)
         self.bestScore = self.firstScore
         self.tableGenerator.InitPatches(self.bestScore)
         
@@ -117,7 +126,7 @@ class CPolyTrainer:
                 
         self.sample = CSample(self.maskVol, self.radIm)
         prevBest = self.bestScore
-        self.firstScore = self.scorer.Score(Config.sfVolumeAi, self.sample)
+        self.firstScore = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
         self.bestScore = self.firstScore
             
         self.nBetterPerSample = 0;
@@ -127,24 +136,42 @@ class CPolyTrainer:
 
     def SelectNextStep(self):
         #print(f'<SelectNextStep> {self.sNext=}')
-        if self.sNext == 'random':
+        if self.sNext == 'targeted':
+            self.iImage = self.scorer.iImageMaxDev
+            self.iRad = self.scorer.iRadMaxDev
+            self.deviation = self.scorer.maxDev
+            self.width = self.scorer.maxDevWidth
+            #print(f'<SelectNextStep> {iImage=}, {iRad=}')
+            #InverseIR = self.IIR
+            #print(f'{InverseIR=}')
+            self.iTube = random.randint(0,1)
+            iRow, iDet = GInverseByTube(self.iTube, self.iImage, self.iRad+1)
+            #iTube, iRow, iDet = InverseIR.InverseByRandomTube(iImage=iImage,iRad=iRad)
+            self.delta = self.tableGenerator.TryTargetedTableStep(self.iTube, iRow, iDet, self.deviation, self.width)
+            consolePrint(f'<TryStep> {self.nTry} TARGETED {self.tableGenerator.sLast} {self.delta=}', 't')
+            
+        elif self.sNext == 'random':
             self.delta = self.tableGenerator.TryRandomTableStep()
             consolePrint(f'<TryStep> {self.nTry} RANDOM {self.tableGenerator.sLast} {self.delta=}', 'r')
                 
         elif self.sNext == 'OnFailure':
-            self.delta = self.tableGenerator.TryOnFailure()
-            consolePrint(f'<TryStep> {self.nTry} ON_FAIL {self.tableGenerator.sLast} {self.delta=}', 'f')
+            self.iTube = 1 - self.iTube
+            iRow, iDet = GInverseByTube(self.iTube, self.iImage, self.iRad+1)
+            #iTube, iRow, iDet = InverseIR.InverseByRandomTube(iImage=iImage,iRad=iRad)
+            self.delta = self.tableGenerator.TryTargetedTableStep(self.iTube, iRow, iDet, self.deviation, self.width)
+            consolePrint(f'<TryStep> {self.nTry} TARG-Other {self.tableGenerator.sLast} {self.delta=}', 'o')
+            # Old "On Failure" changed sign
+            #self.delta = self.tableGenerator.TryOnFailure()
+            #consolePrint(f'<TryStep> {self.nTry} ON_FAIL {self.tableGenerator.sLast} {self.delta=}', 'f')
         #elif self.sNext == 'OnSuccess':
         #    self.delta = self.tableGenerator.TryOnSuccess()
         #    print(f'<TryStep> {self.nTry} ON_GOOD {self.tableGenerator.sLast} {self.delta=}')
         else:
             print(f'<SelectNextStep> Illegal step {self.sNext}')
             sys.exit()
-            #self.sNext = 'random'
-            #return self.SelectNextStep()
 
     def OnBetter(self, score):
-            Config.Start('OnBetter')
+            Start('OnBetter')
                 
             self.nBetter += 1
             self.nBetterNotReported += 1
@@ -158,9 +185,11 @@ class CPolyTrainer:
                 
             self.nNotBetterConsecutive = 0
                 
-            self.sNext = 'random'
+            if not self.bUseRandom:
+                #self.sNext = 'random'
+                self.sNext = 'targeted'
             self.nBetterPerSample += 1
-            Config.End('OnBetter')
+            End('OnBetter')
             
     def LogStep(self, sf, gain, bAll = False):
         with open(sf,'a') as f:
@@ -176,17 +205,27 @@ class CPolyTrainer:
         self.nNotBetterConsecutive += 1
         self.nNotBetterPerSample += 1
         consolePrint(f'--- <<< New table NOT better {self.nNotBetterConsecutive}', '-')
-        if self.sNext == 'random':
-            self.sNext = 'OnFailure'
+        if self.bUseRandom:
+            if self.sNext == 'targeted':
+                self.sNext = 'random'
+            if self.sNext == 'random':
+                self.sNext = 'OnFailure'
+            else:
+                self.sNext = 'targeted'
         else:
-            self.sNext = 'random'
+            # All targeted - but check other tube on failure
+            if self.sNext == 'targeted':
+                self.sNext = 'OnFailure'
+            else:
+                self.sNext = 'targeted'
+            
         
     def TryStep(self):
-        Config.Start('TryStep')
+        Start('TryStep')
         self.nTry += 1 
         self.SelectNextStep()
         RunAiRecon()
-        score = self.scorer.Score(Config.sfVolumeAi, self.sample)
+        score = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
         gain = self.bestScore - score
         self.LogStep(self.sfAllCsv, gain, bAll = True)
         
@@ -195,17 +234,18 @@ class CPolyTrainer:
         if score < self.bestScore:
             self.OnBetter(score)
             sScore = self.LogStep(self.sfImproveCsv, gain)
-            Config.Log(sScore)
+            Log(sScore)
         else:
             self.OnNotbetter()
             
-        Config.End('TryStep')
+        End('TryStep')
         if self.nTry % nStepsToReport == 0:
             print(f' Better {self.nBetter}/{self.nTry}, new {self.nBetterNotReported}/{nStepsToReport}, best {self.bestScore:.6f}')
             self.nBetterNotReported = 0
     
     def Train(self, nTrials):
-        Config.Start('Train')
+        Start('Train')
+        print(f'<Train> n={nTrials}')
         for i in range(nTrials):
             self.TryStep()
             if self.nBetter >= self.nMaxBetter:
@@ -215,7 +255,7 @@ class CPolyTrainer:
                 break
             
         self.tableGenerator.OnEndTraining()
-        Config.End('Train')
+        End('Train')
 
      
 
@@ -235,7 +275,7 @@ def main():
     trainer.RunInitialTable()
     
     if bShort:
-        trainer.Train(40)
+        trainer.Train(20)
     else:
         trainer.Train(20000)
 

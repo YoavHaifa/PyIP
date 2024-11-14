@@ -73,6 +73,21 @@ class CLog:
         self.sections.pop()
         self.times.pop()
 
+gLog = CLog('GPolyTrainer')
+
+
+def Log(s):
+    if gLog:
+        gLog.Log(s)
+
+def Start(sSection, sComment=''):
+    if gLog:
+        gLog.Start(sSection, sComment)
+
+def End(sSection, sComment=''):
+    if gLog:
+        gLog.End(sSection, sComment)
+
 
 def main():
     Config.OnInitRun()

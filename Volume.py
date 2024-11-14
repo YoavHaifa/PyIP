@@ -185,7 +185,7 @@ class CVolume():
         print(f'<DumpSimilarVolume> saved: {sfName}')
 
     def FindMaxPosition(self):
-        iMax = self.pImages.argmin()
+        iMax = self.pImages.argmax()
         imSize = self.nCols * self.nLines
         iImage = int(iMax / imSize)
         iInImage = iMax % imSize

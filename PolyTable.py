@@ -15,7 +15,7 @@ import numpy as np
 import Config
 from Utils import VerifyDir, VerifyJointDir
 from Patch import CCircularPatch
-from Log import CLog
+from Log import CLog, Log
 
 nDetectors = 688
 nRows = 192
@@ -23,7 +23,8 @@ nLayers = 3
 nDetsPerReading = nDetectors * nRows
 
 #aPatchSizes = [10,20,30]
-aPatchSizes = [20]
+#aPatchSizes = [20]
+nPatchesToInit = 11
 circPC = 100
 
 sCalTabDir = 'D:/SpotlightScans/SCANPLAN_830/Calibrations'
@@ -71,8 +72,9 @@ class CPolyTable:
         if len(self.aPatches) > 0:
             return
         
-        for ps in aPatchSizes:
-            self.aPatches.append(CCircularPatch(best, ps, Config.firstDelta, self.iXrt))
+        for iPatch in range(nPatchesToInit):
+            radius = iPatch + 1
+            self.aPatches.append(CCircularPatch(best, radius, Config.firstDelta, self.iXrt))
         self.lastPatch = self.aPatches[0]
 
     def LoadBest(self):
@@ -131,13 +133,8 @@ class CPolyTable:
                 delta = MIN_DELTA
                 
         return delta / 1000
-
-    def TryRandomTableStep(self):
-        
-        self.nTry += 1         
-        self.tempTable = self.table.clone().detach()
-        #self.delta = self.GetRandomDelta()
-
+    
+    def SelectRandomPatch(self):
         nPatches = len(self.aPatches)
         if nPatches > 1:
             iPatch = random.randint(0,nPatches-1)
@@ -147,9 +144,38 @@ class CPolyTable:
         else:
             self.lastPatch = self.aPatches[0]
 
+    def TryRandomTableStep(self):
+        
+        self.nTry += 1         
+        self.tempTable = self.table.clone().detach()
+        self.SelectRandomPatch()
+
         self.lastPatch.AddRandom(self.tempTable, self.log)
         self.SaveTable(self.tempTable)
         return self.lastPatch.delta
+
+    def TryTargetedTableStep(self, iRow, iDet, deviation, width):
+        
+        self.nTry += 1    
+        self.tempTable = self.table.clone().detach()
+        #self.SelectRandomPatch()
+        if width >= nPatchesToInit:
+            self.lastPatch = self.aPatches[-1]
+        else:
+            self.lastPatch = self.aPatches[width-1]            
+        
+        # Set direction of correction
+        absDelta = abs(self.lastPatch.delta)
+        if deviation > 0:
+            self.lastPatch.delta = -absDelta
+        else:
+            self.lastPatch.delta = absDelta
+        Log(f'<TryTargetedTableStep> tube {self.iXrt} at[{iRow}, {iDet}] add {self.lastPatch.delta} width {width}')
+        
+        self.lastPatch.AddAt(self.tempTable, iRow, iDet)
+        self.SaveTable(self.tempTable)
+        return self.lastPatch.delta
+        
 
     def TrySamePatch(self):
         self.nTry += 1         
@@ -260,6 +286,14 @@ class CPolyTables:
         self.SaveTable(self.tmpTable, sfName)
         """
        
+    def TryTargetedTableStep(self, iTube, iRow, iDet, deviation, width):
+        self.nTry += 1
+        self.iCurTab = iTube
+        if verbosity > 1:
+            print(f'<TryRandomTableStep> T{self.iCurTab}')
+
+        self.sLast = 'T'
+        return self.tables[self.iCurTab].TryTargetedTableStep(iRow, iDet, deviation, width)
         
     def TryRandomTableStep(self):
         self.nTry += 1

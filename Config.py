@@ -24,8 +24,8 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 25
-sExp = 'Impulse_Create'
+iExperiment = 28
+sExp = 'Targeted'
 sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
@@ -35,7 +35,6 @@ sVolDir = ''
 #sTabDir1 = ''
 sBestTabsDir = ''
 bInitialized = False
-gLog = None
 
 verbosity = 1
 
@@ -143,8 +142,6 @@ def Clean():
         DeleteFilesInDir(sLogDir)
         DeleteFilesInDir(sBestTabsDir)
         #DeleteFilesInDir(sTabDir1)
-        
-
 
 def WriteMatrixToFile(matrix, sfName, sfType='float'):
     nCols = matrix.shape[-1]
@@ -156,18 +153,6 @@ def WriteMatrixToFile(matrix, sfName, sfType='float'):
     with open (sfFullName, 'wb') as file:
         file.write(npmat.tobytes())
     print('Matrix saved:', sfFullName)
-
-def Log(s):
-    if gLog:
-        gLog.Log(s)
-
-def Start(sSection, sComment=''):
-    if gLog:
-        gLog.Start(sSection, sComment)
-
-def End(sSection, sComment=''):
-    if gLog:
-        gLog.End(sSection, sComment)
     
 def main():
     OnInitRun()

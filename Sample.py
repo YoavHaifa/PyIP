@@ -81,17 +81,30 @@ class CSample:
                     sys.exit()
 
                 selected = random.sample(range(0, nVoxelsPerRadius), nToSelect)
-                #print(selected)
+                """
+                if iImage == 92 and iRadius == 0:
+                    print(f'Add Samples [92,0] {nToSelect=}')
+                    print(f'{selected=}')
+                    """
+
                 nValid = 0
                 for iSample in range(nToSelect):
                     iInRad = selected[iSample]
                     iLine = radIm.rad2PixLine[iRadius,iInRad]
                     iCol = radIm.rad2PixCol[iRadius,iInRad]
+                    """
+                    if iImage == 92 and iRadius == 0:
+                        print(f'{iInRad=} [{iLine},{iCol=}] ==> mask {mask[iImage,iLine,iCol]}')
+                        """
                     if mask[iImage,iLine,iCol] > 0:
                         
+                        self.samplesLines[iImage,iRadius,nValid] = iLine
+                        self.samplesCols[iImage,iRadius,nValid] = iCol
                         nValid += 1
-                        self.samplesLines[iImage,iRadius,iSample] = iLine
-                        self.samplesCols[iImage,iRadius,iSample] = iCol
+                        """
+                        if iImage == 92 and iRadius == 0:
+                            print(f'Added [{iLine},{iCol=}]')
+                            """
                     else:
                         self.nInvalidSamples[iImage,iRadius] += 1
                         

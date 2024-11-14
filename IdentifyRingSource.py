@@ -67,6 +67,7 @@ def ApplyIR(iTube, iRow, iCol):
     return sfDump
     
 def main():
+    global verbosity
     print('*** ===>>> Use inverse impulse response table on volume ring')
     VerifyDir(sDumpDir)
     iTube = 0 
@@ -74,8 +75,10 @@ def main():
     firstDet = 150
     deltaDet = 25
     nDetsToCompute = 17
+    if nDetsToCompute < 2:
+        verbosity = 5
     
-    sfCsv = f'd:/Log/CheckIIR_tube{iTube}_row{iRow}_det{firstDet}_dDet{deltaDet}.csv'
+    sfCsv = f'd:/Log/CheckIIR_max_tube{iTube}_row{iRow}_det{firstDet}_dDet{deltaDet}.csv'
     with open(sfCsv, 'w') as fCsv:
     
         fCsv.write('row, det, image, radius, inv-row, inv-det, delta row, delta det\n')

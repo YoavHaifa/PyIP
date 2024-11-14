@@ -10,7 +10,7 @@ import math
 import random
 
 import Config
-from Log import CLog
+from Log import CLog, Log
 
 nDetectors = 688
 nRows = 192
@@ -144,6 +144,7 @@ class CCircularPatch(CPatch):
             print(f'Add Circular {self.nTry}, {self.delta=}')
             print(f'table[{self.iFirstRow}:{self.iLastRow}, {self.iFirstCol}:{self.iLastCol}]')
             print(f'patch[{self.iFirstRowInPatch}:{self.iLastRowInPatch}, {self.iFirstColInPatch}:{self.iLastColInPatch}]')
+        Log(f'<Add> [{self.iFirstRowInPatch}:{self.iLastRowInPatch}, {self.iFirstColInPatch}:{self.iLastColInPatch}] delta {self.delta}')
         add = self.raster[self.iFirstRowInPatch:self.iLastRowInPatch,self.iFirstColInPatch:self.iLastColInPatch] * self.delta
         table[0,self.iFirstRow:self.iLastRow,self.iFirstCol:self.iLastCol] += add
        
@@ -152,13 +153,19 @@ class CCircularPatch(CPatch):
         self.Add(table)
         
     def AddRandom(self, table, log):
+        iRow = random.randint(0, nRows-1)
+        iCol = random.randint(0, nDetectors-1)
+        if log:
+            log.Log(f'<Circ::AddRandom> center [{iRow},{iCol}] {self.delta=:.9f}')
+        self.AddAt(table, iRow, iCol)
+            
+        
+    def AddAt(self, table, iRow, iCol):
+        self.iCenterRow = iRow
+        self.iCenterCol = iCol
         halfSide = int(self.side / 2)
         bEdge = False
-        self.iCenterRow = random.randint(0, nRows-1)
-        self.iCenterCol = random.randint(0, nDetectors-1)
-        if log:
-            log.Log(f'<Circ::AddRandom> center [{self.iFirstRow},{self.iCenterCol}] {self.delta=:.9f}')
-            
+        
         self.iFirstRow = self.iCenterRow - halfSide
         if self.iFirstRow < 0:
             self.iFirstRowInPatch = -self.iFirstRow
@@ -197,6 +204,7 @@ class CCircularPatch(CPatch):
             self.nEdge += 1
             if verbosity > 1 and self.nEdge <= 10:
                 print(f'===>>> Edge {self.nEdge}')
+            Log(f'===>>> Edge {self.nEdge}')
         self.Add(table)
 
     def Dump(self):

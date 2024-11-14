@@ -10,11 +10,12 @@ import psutil
 import sys
 
 import Config
+from Log import Start, End
 
 verbose = 1
 count = 0
 
-nToPrint = 5
+nToPrint = 3
 
 sHSProg = 'D:/Software-Recon/Output/release/Bin/HostSimulator.exe'
 #sHSProg = 'G:\Software-Recon-v1.3.1\Output\Debug\Bin\HostSimulator.exe'
@@ -32,7 +33,7 @@ lParams = ['-exec', 'OfflineRecon',
 def RunRecon():
     global count
     count += 1
-    Config.Start('Recon')
+    Start('Recon')
     #args = [sHSProg, sParams]
     args = [sHSProg]
     args.extend(lParams)
@@ -41,7 +42,7 @@ def RunRecon():
     if verbose > 2:
         print(args)
     subprocess.run(args)
-    Config.End('Recon')
+    End('Recon')
     VeifyReconRunning(bOnEnd = True)
 
 def RunOriginalRecon():
