@@ -24,9 +24,9 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 28
-sExp = 'Targeted'
-sExp = 'try'
+iExperiment = 29
+sExp = 'Targeted+W+O'
+#sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'

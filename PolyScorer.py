@@ -41,6 +41,9 @@ class CPolyScorer:
         self.targetAverage = 0
         self.bTargetDefined = False
         self.iRingTargeted = torch.zeros([maxImages, maxRadius])
+        self.bMaxImproved = False
+        self.maxDev = 0 
+        self.prevMaxDev = 0
 
     def ScoreImage(self, image, samplesLines, samplesCols, nValid, iImage):
         nRadiuses = 0
@@ -174,8 +177,10 @@ class CPolyScorer:
         self.nRadiusesPerImage = sample.nRadiusesPerImage
         self.ScoreAllImages(vol, sample)
         
+        self.bMaxImproved = False
         if self.count > 0:
             self.CheckChangeInMaxPos()
+        #if not self.bMaxImproved:
         self.FindMaxDeviation()
         self.count += 1
         if verbosity > 1:
@@ -215,8 +220,13 @@ class CPolyScorer:
             changed = self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev].item()
             if changed == self.maxDev:
                 s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} SAME'
+            elif changed < self.maxDev:
+                self.bMaxImproved = True
+                self.prevMaxDev = self.maxDev
+                self.maxDev = changed
+                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} BETTER < {self.maxDev:.3f}'
             else:
-                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} ==> {changed:.3f}'
+                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} WORSE > {self.maxDev:.3f}'
             Log(s)
 
     def FindMaxDeviation(self):
