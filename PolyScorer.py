@@ -33,6 +33,7 @@ class CPolyScorer:
         self.originalAverage = 0
         self.oldScore = HIGH_SCORE
         self.newScore = HIGH_SCORE
+        self.bestScore = HIGH_SCORE
         self.count = 0
         self.nImages = 0
         self.iImage = 0
@@ -161,15 +162,15 @@ class CPolyScorer:
         relevanDelatAvg = self.deltaAveragePerImage[0:self.nImagesScored]
         self.averageScore = relevanDelatAvg.mean()
         
-    def NewScore(self, sfVolume, sample):
+    def ComputeNewScoreOfVolume(self, sfVolume, sample):
         if not self.bTargetDefined:
             self.newScore = HIGH_SCORE
             return
             
-        Start('NewScore')
+        Start('ComputeNewScoreOfVolume')
         if verbosity > 1:
-            print('<CPolyScorer::NewScore> ', sfVolume)
-        Log(f'<CPolyScorer::NewScore> {sfVolume}')
+            print('<CPolyScorer::ComputeNewScoreOfVolume> ', sfVolume)
+        Log(f'<CPolyScorer::ComputeNewScoreOfVolume> {sfVolume}')
         vol = CVolume('scoredVol', sfVolume)
         self.radIm = sample.radIm
         
@@ -181,11 +182,13 @@ class CPolyScorer:
         if self.count > 0:
             self.CheckChangeInMaxPos()
         #if not self.bMaxImproved:
+        self.ComputeNewScore()
+        
         self.FindMaxDeviation()
         self.count += 1
         if verbosity > 1:
-            print(f'<CPolyScorer::NewScore> {self.count} Score {self.newScore}')
-        End('NewScore')
+            print(f'<CPolyScorer::ComputeNewScoreOfVolume> {self.count} Score {self.newScore}')
+        End('ComputeNewScoreOfVolume')
         return self.newScore
         
     def OldScore(self, sfVolume, sample):
@@ -219,29 +222,36 @@ class CPolyScorer:
         if self.iImageMaxDev >= 0 and self.iRadMaxDev >= 0:
             changed = self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev].item()
             if changed == self.maxDev:
-                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} SAME'
+                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} SAME'
             elif changed < self.maxDev:
                 self.bMaxImproved = True
                 self.prevMaxDev = self.maxDev
                 self.maxDev = changed
-                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} BETTER < {self.maxDev:.3f}'
+                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} BETTER < {self.maxDev:.3f}'
             else:
-                s = f'<FindMaxDeviation> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} WORSE > {self.maxDev:.3f}'
+                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} WORSE > {self.maxDev:.3f}'
             Log(s)
 
-    def FindMaxDeviation(self):
+    def ComputeNewScore(self):
         self.avgDev = self.deltaAveragePerRing.mean().item()
         #self.DumpDeviation()
         self.PeelDeviation()
         if self.count <= 100:
             self.DumpDeviation()
         self.absDeltaAveragePerRing = self.deltaAveragePerRing.abs()
-        prev = self.newScore
         self.newScore = self.absDeltaAveragePerRing.mean().item()
-        diff = self.newScore - prev
+        diff = self.newScore - self.bestScore
         
-        Log(f'<<CheckChangeInMaxPos>> score {prev} ==> {self.newScore} (diff {diff})')
+        Log(f'<<ComputeNewScore>> score {self.bestScore} ==> {self.newScore} (diff {diff})')
+        if self.newScore < self.bestScore:
+            Log(f'<CheckChangeInMaxPos> IMPROVED score {self.bestScore} ==> {self.newScore} (diff {diff})')
+            self.bestScore = self.newScore
+        elif self.newScore == self.bestScore:
+            Log(f'<ComputeNewScore> SAME score {self.bestScore}')
+        else:
+            Log(f'<ComputeNewScore> FAILED score {self.bestScore} ==> {self.newScore} (diff {diff})')
 
+    def FindMaxDeviation(self):
         threshold = float(max(1, self.count - 1000))
         absNew = torch.where(self.iRingTargeted < threshold, self.absDeltaAveragePerRing, 0)
 
@@ -314,7 +324,7 @@ class CPolyScorer:
 
     def DumpDeviation(self):
         size = self.deltaAveragePerRing.shape;
-        sfName = f'd:/Dump/ScoreDEV_count{self.count}_width{size[1]}_height{size[0]}_p{self.nPeeled}_dzoom2.float.rmat'
+        sfName = f'd:/Dump/ScoreDEV_count{self.count}_{self.count}_width{size[1]}_height{size[0]}_p{self.nPeeled}_dzoom2.float.rmat'
         npMat = self.deltaAveragePerRing.numpy()
         with open (sfName, 'wb') as file:
             file.write(npMat.tobytes())
@@ -370,7 +380,7 @@ def main():
     scorer.Log()
     print(f'{oldScore=}')
     
-    score = scorer.NewScore(Config.sfVolumeAi, sample)
+    score = scorer.ComputeNewScoreOfVolume(Config.sfVolumeAi, sample)
     scorer.Log()
     print(f'{score=}')
     

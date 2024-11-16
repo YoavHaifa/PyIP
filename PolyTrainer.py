@@ -57,7 +57,7 @@ class CPolyTrainer:
         self.nImprovements = 0
         self.radIm = CRadiusImage()
         
-        RunOriginalRecon()
+        RunOriginalRecon('Original')
         
         self.originalVol = CVolume('nominalVol', Config.sfVolumeNominal)
         self.maskVol = CMaskVolume(self.originalVol)
@@ -98,9 +98,9 @@ class CPolyTrainer:
                 
     def RunInitialTable(self):
         self.tableGenerator = CPolyTables() # Prepares initial table
-        RunAiRecon()
+        RunAiRecon('InitialTable')
         self.firstOldScore = self.scorer.OldScore(Config.sfVolumeAi, self.sample)
-        self.firstScore = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
+        self.firstScore = self.scorer.ComputeNewScoreOfVolume(Config.sfVolumeAi, self.sample)
         s = f'<RunInitialTable> first score {self.firstScore}'
         print(s)
         Log(s)
@@ -126,7 +126,7 @@ class CPolyTrainer:
                 
         self.sample = CSample(self.maskVol, self.radIm)
         prevBest = self.bestScore
-        self.firstScore = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
+        self.firstScore = self.scorer.ComputeNewScoreOfVolume(Config.sfVolumeAi, self.sample)
         self.bestScore = self.firstScore
             
         self.nBetterPerSample = 0;
@@ -224,8 +224,8 @@ class CPolyTrainer:
         Start('TryStep')
         self.nTry += 1 
         self.SelectNextStep()
-        RunAiRecon()
-        score = self.scorer.NewScore(Config.sfVolumeAi, self.sample)
+        RunAiRecon('TryPolyStep')
+        score = self.scorer.ComputeNewScoreOfVolume(Config.sfVolumeAi, self.sample)
         gain = self.bestScore - score
         self.LogStep(self.sfAllCsv, gain, bAll = True)
         
@@ -263,6 +263,7 @@ class CPolyTrainer:
 def main():
     VeifyReconRunning()
     bShort = False
+    nShort = 2
     #bShort = True
     if Config.sExp == 'try':
         bShort = True
@@ -275,7 +276,7 @@ def main():
     trainer.RunInitialTable()
     
     if bShort:
-        trainer.Train(20)
+        trainer.Train(nShort)
     else:
         trainer.Train(20000)
 

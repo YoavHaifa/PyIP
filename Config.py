@@ -24,9 +24,9 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 29
+iExperiment = 30
 sExp = 'Targeted+W+O'
-#sExp = 'try'
+sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
@@ -52,8 +52,12 @@ def OnInitRun(sSpecialVolDir=None):
     global sBestTabsDir, nToEvaluate
     
     if bInitialized:
-        print('Attempt to call <OnInitRun> twice. Exiting...')
-        sys.exit()
+        if sSpecialVolDir is not None:
+            print('Attempt to call <OnInitRun> twice. Exiting...')
+            sys.exit()
+        else:
+            return
+        
     bInitialized = True
     
     VerifyDir(sfRoot)
@@ -90,6 +94,8 @@ def OnInitRun(sSpecialVolDir=None):
 
     
 def LogFileName(sfName):
+    if not bInitialized:
+        OnInitRun()
     _, sExt = os.path.splitext(sfName)
     if sExt not in ['.log', '.txt', '.csv']:
         sfName = sfName + '.log'

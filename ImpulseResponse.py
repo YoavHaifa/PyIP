@@ -77,7 +77,7 @@ def CreateIR(iTube, radIm):
                     
                 sfDump = f'Poli_AI_t{iTube}_r{iRow}_d{iDet}_width{matrix}_height{matrix}_zoom2.float.rvol'
                 Config.sfVolumeAi = path.join('d:/PolyCalib/Impulse', sfDump)
-                RunAiRecon()
+                RunAiRecon('CreateIR')
                 fCsv.write(f'{iRow}, {iDet}, ');
                 AnalyzeIR(Config.sfVolumeAi, radIm, fCsv)
                 if iDet == nDets - 1:

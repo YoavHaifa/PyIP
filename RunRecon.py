@@ -30,7 +30,7 @@ lParams = ['-exec', 'OfflineRecon',
            '-reconparam', 
            'ReconParams_e95faa2dd826c08ad72508dc4103ad3a.csv']
 
-def RunRecon():
+def RunRecon(sWhy = None):
     global count
     count += 1
     Start('Recon')
@@ -38,20 +38,23 @@ def RunRecon():
     args = [sHSProg]
     args.extend(lParams)
     if verbose > 1 or count <= nToPrint:
-        print(f'*** Calling Recon {count}')
+        if sWhy is not None:
+            print(f'*** Calling Recon {count} for {sWhy}')
+        else:
+            print(f'*** Calling Recon {count}')
     if verbose > 2:
         print(args)
     subprocess.run(args)
     End('Recon')
     VeifyReconRunning(bOnEnd = True)
 
-def RunOriginalRecon():
+def RunOriginalRecon(sWhy = None):
     Config.SetPolyNominal()
-    RunRecon()
+    RunRecon(sWhy)
 
-def RunAiRecon(bDefaultOutput = True):
+def RunAiRecon(sWhy, bDefaultOutput = True):
     Config.SetPolyByAi(bDefaultOutput)
-    RunRecon()
+    RunRecon(sWhy)
     
 def VeifyReconRunning(bOnEnd = False):
     bRunning = "AppRunner.exe" in (p.name() for p in psutil.process_iter())
@@ -67,10 +70,10 @@ def main():
     print('*** Verify that recon is running')
     VeifyReconRunning()
     print('*** Run Original Recon by Host Simulator Command Line')
-    RunOriginalRecon()
+    RunOriginalRecon('Test Original Recon')
     print('Nominal Recon Finished')
     if n > 1:
-        RunAiRecon()
+        RunAiRecon('test AI recon')
         print('AI Recon Finished')
  
 if __name__ == '__main__':

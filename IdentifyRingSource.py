@@ -63,7 +63,7 @@ def ApplyIR(iTube, iRow, iCol):
         file.write(f'{sDumpDir}/{sfDump}\n')
     print(f'File {sfDumpName} written')
 
-    RunAiRecon(bDefaultOutput = False)
+    RunAiRecon('ApplyIR', bDefaultOutput = False)
     return sfDump
     
 def main():

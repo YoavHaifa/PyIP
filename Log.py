@@ -32,6 +32,7 @@ class CLog:
         self.blanks = ''
         self.sections = []
         self.times = []
+        print(f'Starting log <{self.sfName}>' )
         
     def __del__(self):
         print(f'<CLog::__del__> {self.sfName} logged {self.count} lines.')
