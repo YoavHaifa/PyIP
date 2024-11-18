@@ -165,6 +165,7 @@ class CPolyScorer:
     def ComputeNewScoreOfVolume(self, sfVolume, sample):
         if not self.bTargetDefined:
             self.newScore = HIGH_SCORE
+            print('<ComputeNewScoreOfVolume> - target not defined yet!')
             return
             
         Start('ComputeNewScoreOfVolume')
@@ -365,7 +366,8 @@ def main():
     global verbosity
     print('*** Test Poly Scorer')
     verbosity = 5
-    Config.OnInitRun(sSpecialVolDir='D:/PolyCalib/Volumns')
+    Config.SetSpecialVolDir('D:/PolyCalib/Volumns')
+    Config.OnInitRun()
     radIm = CRadiusImage()
     vol = CVolume('nominalVol', Config.sfVolumeNominal)
     maskVol = CMaskVolume(vol)

@@ -88,7 +88,8 @@ def CreateIR(iTube, radIm):
 def main():
     print('*** ===>>> RunRecon for impulse response')
     VeifyReconRunning()
-    Config.OnInitRun('d:/PolyCalib/Impulse')
+    Config.SetSpecialVolDir('D:/PolyCalib/Impulse')
+    Config.OnInitRun()
     #CreateIR()
     radIm = CRadiusImage()
     #AnalyzeIR(sfVol, radIm)

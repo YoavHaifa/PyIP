@@ -134,6 +134,8 @@ class CPolyTrainer:
 
         print(f'<CreateNewSampe> {self.iSample} best {prevBest} --> {self.bestScore}')
 
+    def SelectTarget(self):
+
     def SelectNextStep(self):
         #print(f'<SelectNextStep> {self.sNext=}')
         if self.sNext == 'targeted':
@@ -219,6 +221,11 @@ class CPolyTrainer:
             else:
                 self.sNext = 'targeted'
             
+    def TargetedCorrection(self):
+        Start('TargetedCorrection')
+        self.SelectTarget()
+        End('TargetedCorrection')
+        
         
     def TryStep(self):
         Start('TryStep')
@@ -247,7 +254,7 @@ class CPolyTrainer:
         Start('Train')
         print(f'<Train> n={nTrials}')
         for i in range(nTrials):
-            self.TryStep()
+            self.TargetedCorrection()
             if self.nBetter >= self.nMaxBetter:
                 break
             if path.exists(self.sfAbort):

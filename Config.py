@@ -46,18 +46,29 @@ def SetBPOutputFileName(sPrefix):
     s = path.join(sVolDir, s)
     return s
 
-def OnInitRun(sSpecialVolDir=None):
+def OnVolDirSet():
+    sfVolumeNominal = SetBPOutputFileName('BP_nom')
+    sfVolumeAi = SetBPOutputFileName('BP_PolyAI')
+    print(f'{sfVolumeNominal=}')
+    print(f'{sfVolumeAi=}')
+
+def SetSpecialVolDir(sSpecialVolDir):
+    global sVolDir
+    if path.isdir(sSpecialVolDir):
+        sVolDir = sSpecialVolDir
+        print('Using special Volumes Dir: ', sSpecialVolDir)
+        OnVolDirSet()
+    else:
+        print('Missing special Volumes Dir: ', sSpecialVolDir)
+        sys.exit()
+
+def OnInitRun():
     global sBaseDir, sLogDir, sVolDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
     global sBestTabsDir, nToEvaluate
     
     if bInitialized:
-        if sSpecialVolDir is not None:
-            print('Attempt to call <OnInitRun> twice. Exiting...')
-            sys.exit()
-        else:
-            return
-        
+        return 
     bInitialized = True
     
     VerifyDir(sfRoot)
@@ -71,21 +82,10 @@ def OnInitRun(sSpecialVolDir=None):
     
     sLogDir = VerifyJointDir(sBaseDir, 'Log')
     
-    if sSpecialVolDir:
-        if path.isdir(sSpecialVolDir):
-            sVolDir = sSpecialVolDir
-            print('Using special Volumes Dir: ', sSpecialVolDir)
-        else:
-            print('Missing special Volumes Dir: ', sSpecialVolDir)
-            sys.exit()
-    else:
+    if sVolDir == '':
         sVolDir = VerifyJointDir(sBaseDir, 'Vol')
-    
-    sfVolumeNominal = SetBPOutputFileName('BP_nom')
-    sfVolumeAi = SetBPOutputFileName('BP_PolyAI')
-    print(f'{sfVolumeNominal=}')
-    print(f'{sfVolumeAi=}')
-    
+        OnVolDirSet()
+
     sBestTabsDir = VerifyJointDir(sBaseDir, 'BestTabs')
     VerifyJointDir(sBaseDir, 'Manualy Saved Results')
     
