@@ -47,6 +47,7 @@ def SetBPOutputFileName(sPrefix):
     return s
 
 def OnVolDirSet():
+    global sfVolumeNominal, sfVolumeAi
     sfVolumeNominal = SetBPOutputFileName('BP_nom')
     sfVolumeAi = SetBPOutputFileName('BP_PolyAI')
     print(f'{sfVolumeNominal=}')

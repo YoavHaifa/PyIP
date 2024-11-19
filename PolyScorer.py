@@ -15,6 +15,7 @@ from RadiusImage import CRadiusImage
 from MaskVolume import CMaskVolume
 from Sample import CSample
 from Log import Start, End, Log
+from DevRaster import CDevRaster
 
 maxRadius = 260
 maxImages = 280
@@ -41,7 +42,7 @@ class CPolyScorer:
         self.iRadMaxDev = -1
         self.targetAverage = 0
         self.bTargetDefined = False
-        self.iRingTargeted = torch.zeros([maxImages, maxRadius])
+        #self.iRingTargeted = torch.zeros([maxImages, maxRadius])
         self.bMaxImproved = False
         self.maxDev = 0 
         self.prevMaxDev = 0
@@ -79,9 +80,10 @@ class CPolyScorer:
             return
         
         relevant = avgs[0:nRadiuses]
+        self.averagePerImageRing[iImage,0:nRadiuses] = relevant
+        """
         if self.bTargetDefined:
             self.deltaAveragePerRing[iImage,0:nRadiuses] = relevant - self.targetAverage
-            """
             if iImage >= 90 and iImage <= 100:
                 print(f'<ScoreImage> {iImage} - {relevant[0]}')
                 """
@@ -107,7 +109,7 @@ class CPolyScorer:
 
     def ScoreAllImages(self, vol, sample):
         Start('ScoreAllImages')
-        self.nPeeled = 0
+        #self.nPeeled = 0
         self.sum = 0
         self.nSummed = 0
         self.nImagesScored = 0
@@ -117,8 +119,9 @@ class CPolyScorer:
         self.rangePerImageQ = torch.zeros(self.nImages)
         self.averagePerImage = torch.zeros(self.nImages)
         self.deltaAveragePerImage = torch.zeros(self.nImages) # Relative to original Volume Average
-        self.deltaAveragePerRing = torch.zeros([self.nImages, maxRadius])
-        self.absDeltaAveragePerRing = torch.zeros([self.nImages, maxRadius])
+        self.averagePerImageRing = torch.zeros([self.nImages, maxRadius])
+        #self.deltaAveragePerRing = torch.zeros([self.nImages, maxRadius])
+        #self.absDeltaAveragePerRing = torch.zeros([self.nImages, maxRadius])
 
         nToScore = min(maxImages, self.nImages)
         for iIm in range(nToScore):
@@ -180,12 +183,23 @@ class CPolyScorer:
         self.ScoreAllImages(vol, sample)
         
         self.bMaxImproved = False
-        if self.count > 0:
-            self.CheckChangeInMaxPos()
+        #if self.count > 0:
+        #    self.CheckChangeInMaxPos()
         #if not self.bMaxImproved:
-        self.ComputeNewScore()
-        
-        self.FindMaxDeviation()
+        self.devRaster = CDevRaster(self.targetAverage, self.averagePerImageRing)
+
+        # LOG
+        self.newScore = self.devRaster.score
+        diff = self.newScore - self.bestScore
+        #Log(f'<<ComputeNewScore>> score {self.bestScore} ==> {newScore} (diff {diff})')
+        if self.newScore < self.bestScore:
+            Log(f'<ComputeNewScore> IMPROVED score {self.bestScore} ==> {self.newScore} (diff {diff})')
+            self.bestScore = self.newScore
+        elif self.newScore == self.bestScore:
+            Log(f'<ComputeNewScore> SAME score {self.bestScore}')
+        else:
+            Log(f'<ComputeNewScore> FAILED best {self.bestScore} < new {self.newScore} (diff {diff})')
+
         self.count += 1
         if verbosity > 1:
             print(f'<CPolyScorer::ComputeNewScoreOfVolume> {self.count} Score {self.newScore}')
@@ -194,10 +208,10 @@ class CPolyScorer:
         
     def OldScore(self, sfVolume, sample):
         Start('OldScore')
-        if verbosity > 1:
-            print('<CPolyScorer::OldScore> ', sfVolume)
-        Log(f'<CPolyScorer::Score> {sfVolume}')
         vol = CVolume('scoredVol', sfVolume)
+        if verbosity > 1:
+            print('<CPolyScorer::OldScore> ', vol.fName)
+        Log(f'<CPolyScorer::OldScore> {vol.fName}')
             
         self.radIm = sample.radIm
         
@@ -218,120 +232,6 @@ class CPolyScorer:
         Log(s)
         End('OldScore')
         return self.oldScore
-    
-    def CheckChangeInMaxPos(self):
-        if self.iImageMaxDev >= 0 and self.iRadMaxDev >= 0:
-            changed = self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev].item()
-            if changed == self.maxDev:
-                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} SAME'
-            elif changed < self.maxDev:
-                self.bMaxImproved = True
-                self.prevMaxDev = self.maxDev
-                self.maxDev = changed
-                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} BETTER < {self.maxDev:.3f}'
-            else:
-                s = f'<CheckChangeInMaxPos> Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {changed:.3f} WORSE > {self.maxDev:.3f}'
-            Log(s)
-
-    def ComputeNewScore(self):
-        self.avgDev = self.deltaAveragePerRing.mean().item()
-        #self.DumpDeviation()
-        self.PeelDeviation()
-        if self.count <= 100:
-            self.DumpDeviation()
-        self.absDeltaAveragePerRing = self.deltaAveragePerRing.abs()
-        self.newScore = self.absDeltaAveragePerRing.mean().item()
-        diff = self.newScore - self.bestScore
-        
-        Log(f'<<ComputeNewScore>> score {self.bestScore} ==> {self.newScore} (diff {diff})')
-        if self.newScore < self.bestScore:
-            Log(f'<CheckChangeInMaxPos> IMPROVED score {self.bestScore} ==> {self.newScore} (diff {diff})')
-            self.bestScore = self.newScore
-        elif self.newScore == self.bestScore:
-            Log(f'<ComputeNewScore> SAME score {self.bestScore}')
-        else:
-            Log(f'<ComputeNewScore> FAILED score {self.bestScore} ==> {self.newScore} (diff {diff})')
-
-    def FindMaxDeviation(self):
-        threshold = float(max(1, self.count - 1000))
-        absNew = torch.where(self.iRingTargeted < threshold, self.absDeltaAveragePerRing, 0)
-
-        iMax = absNew.argmax().item()
-        self.iImageMaxDev = int(iMax / maxRadius)
-        self.iRadMaxDev = iMax % maxRadius
-        self.maxDev = self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev].item()
-        self.iRingTargeted[self.iImageMaxDev,self.iRadMaxDev] = self.count
-        
-        #find width of current ring
-        self.maxDevWidth = 1 
-        thresh = self.maxDev / 10
-        if self.maxDev > 0:
-            for iTry in range(9):
-                delta = iTry + 1
-                if self.iImageMaxDev+delta < self.nImages:
-                    if self.deltaAveragePerRing[self.iImageMaxDev+delta,self.iRadMaxDev] < threshold:
-                        break
-                if self.iImageMaxDev-delta >= 0:
-                    if self.deltaAveragePerRing[self.iImageMaxDev-delta,self.iRadMaxDev] < threshold:
-                        break
-                if self.iRadMaxDev+delta < maxRadius:
-                    if self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev+delta] < threshold:
-                        break
-                if self.iRadMaxDev-delta >= 0:
-                    if self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev-delta] < threshold:
-                        break
-                self.maxDevWidth += 1 
-        else:
-            for iTry in range(9):
-                delta = iTry + 1
-                if self.iImageMaxDev+delta < self.nImages:
-                    if self.deltaAveragePerRing[self.iImageMaxDev+delta,self.iRadMaxDev] > threshold:
-                        break
-                if self.iImageMaxDev-delta >= 0:
-                    if self.deltaAveragePerRing[self.iImageMaxDev-delta,self.iRadMaxDev] > threshold:
-                        break
-                if self.iRadMaxDev+delta < maxRadius:
-                    if self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev+delta] > threshold:
-                        break
-                if self.iRadMaxDev-delta >= 0:
-                    if self.deltaAveragePerRing[self.iImageMaxDev,self.iRadMaxDev-delta] > threshold:
-                        break
-                self.maxDevWidth += 1 
-
-        #if verbosity > 1 or self.count < 10 or self.count % 100 == 0:
-        s = f'<FindMaxDeviation> Average Deviation {self.avgDev:.3f} Max at [{self.iImageMaxDev},{self.iRadMaxDev}] = {self.maxDev:.3f} width {self.maxDevWidth}'
-        if verbosity > 1:
-            print(s)
-        Log(s)
-
-    def PeelDeviation(self):
-        self.nPeeled += 1
-        self.deltaAveragePerRing[0] = 0
-        self.deltaAveragePerRing[-1] = 0
-        size = self.deltaAveragePerRing.shape;
-        nImages = size[0]
-        nRadiuses = size[1]
-        oldDelta = self.deltaAveragePerRing.clone().detach()
-        for iIm in range (nImages-2):
-            iImage = iIm + 1
-            for iR in range(nRadiuses-1):
-                if oldDelta[iImage-1,iR] == 0:
-                    self.deltaAveragePerRing[iImage,iR] = 0
-                if oldDelta[iImage+1,iR] == 0:
-                    self.deltaAveragePerRing[iImage,iR] = 0
-                if oldDelta[iImage,iR+1] == 0:
-                    self.deltaAveragePerRing[iImage,iR] = 0
-        
-
-    def DumpDeviation(self):
-        size = self.deltaAveragePerRing.shape;
-        sfName = f'd:/Dump/ScoreDEV_count{self.count}_{self.count}_width{size[1]}_height{size[0]}_p{self.nPeeled}_dzoom2.float.rmat'
-        npMat = self.deltaAveragePerRing.numpy()
-        with open (sfName, 'wb') as file:
-            file.write(npMat.tobytes())
-        if verbosity > 1:
-            print(f'<DumpDeviation> saved: {sfName}')
-        Log(f'<DumpDeviation> saved: {sfName}')
     
     def WriteTitle(self, f):
         f.write(', rangeH, rangeQ, maxDev, score')
@@ -367,7 +267,9 @@ def main():
     print('*** Test Poly Scorer')
     verbosity = 5
     Config.SetSpecialVolDir('D:/PolyCalib/Volumns')
+    print(f'{Config.sfVolumeNominal=}')
     Config.OnInitRun()
+    print(f'{Config.sfVolumeNominal=}')
     radIm = CRadiusImage()
     vol = CVolume('nominalVol', Config.sfVolumeNominal)
     maskVol = CMaskVolume(vol)
