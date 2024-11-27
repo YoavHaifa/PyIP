@@ -24,7 +24,7 @@ nToEvaluateTry = 10
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 30
+iExperiment = 31
 sExp = 'Targeted+W+O'
 sExp = 'try'
 bDeleteOnStart = False
