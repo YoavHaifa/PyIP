@@ -8,7 +8,9 @@ Poly Trainer Class - responsible for the complete process of training a poly tab
 #import os
 from os import path
 import random
-#import torch
+import torch
+import torch.optim as optim
+
 #import time
 import sys
 
@@ -23,12 +25,19 @@ from PolyTable import CPolyTables
 from Utils import GetAbortFileName
 from Log import Log, Start, End
 from InverseIR import GInverseByTube
+from PolyModel import CPolyModel
+from ExRecon import CExRecon
 
 nDetectors = 688
 nRows = 192
 nLayers = 3
 deltaSave = 200
 deltaSample = 400
+
+nImages = 280
+maxRadius = 260
+
+nSmallInput = 10
 
 BIG_SCORE = 1000000.0
 
@@ -100,7 +109,8 @@ class CPolyDLTrainer:
         self.tableGenerator = CPolyTables() # Prepares initial table
         RunAiRecon('InitialTable')
         self.firstOldScore = self.scorer.OldScore(Config.sfVolumeAi, self.sample)
-        self.firstScore = self.scorer.ComputeNewScoreOfVolume(Config.sfVolumeAi, self.sample)
+        self.scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, self.sample)
+        self.firstScore = self.scorer.ComputeNewScoreOfVolume2()
         s = f'<RunInitialTable> first score {self.firstScore}'
         print(s)
         Log(s)
@@ -110,7 +120,13 @@ class CPolyDLTrainer:
         self.sfAllCsv = self.OpenCsv('Training_All.csv')
         self.sfImproveCsv = self.OpenCsv('Training_Improve.csv')
         
+        self.initialDevMap = self.scorer.devRaster.dev.clone()
+        self.SaveInitialDevMap()
+        
         Config.SaveAiVolume(0)
+        
+    def SaveInitialDevMap(self):
+        Config.WriteMatrixToFile(self.initialDevMap, 'initialDevMap')
         
     def CreateNewSampe(self):
         nAll = self.nBetterPerSample + self.nNotBetterPerSample
@@ -257,7 +273,31 @@ class CPolyDLTrainer:
         self.tableGenerator.OnEndTraining()
         End('Train')
         
-    def TrainDL(self, nTrials)
+    def TrainDL(self, nTrials):
+        Start('TrainDL')
+        nIn = nSmallInput # nImages * maxRadius
+        tInput = torch.ones(nSmallInput)
+        nOut = nRows * nDetectors * 2
+        print(f'{nIn=}, {nOut=}')
+        model = CPolyModel(nIn, nOut)
+        End('TrainDL')
+        
+        PRecon = CExRecon.apply
+        optimizer = optim.Adam(model.model.parameters(), lr=0.001)
+        
+        for i in range(nTrials):
+            tabs = model.model(tInput)
+            tabs = tabs / 100 - 0.005
+            tabs = tabs.view(-1,nRows,nDetectors)
+            print(f'{tabs=}')
+            print(f'{tabs.size()=}')
+            with torch.no_grad():
+                self.tableGenerator.Set(tabs)
+                
+            loss = PRecon(tabs, self.scorer, self.sample)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
      
 
@@ -265,7 +305,7 @@ class CPolyDLTrainer:
 def main():
     VeifyReconRunning()
     bShort = False
-    nShort = 2
+    nShort = 1
     #bShort = True
     if Config.sExp == 'try':
         bShort = True

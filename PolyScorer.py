@@ -165,7 +165,7 @@ class CPolyScorer:
         relevanDelatAvg = self.deltaAveragePerImage[0:self.nImagesScored]
         self.averageScore = relevanDelatAvg.mean()
         
-    def ComputeNewScoreOfVolume(self, sfVolume, sample):
+    def ComputeNewScoreOfVolume1(self, sfVolume, sample):
         if not self.bTargetDefined:
             self.newScore = HIGH_SCORE
             print('<ComputeNewScoreOfVolume> - target not defined yet!')
@@ -182,6 +182,7 @@ class CPolyScorer:
         self.nRadiusesPerImage = sample.nRadiusesPerImage
         self.ScoreAllImages(vol, sample)
         
+    def ComputeNewScoreOfVolume2(self):
         self.bMaxImproved = False
         #if self.count > 0:
         #    self.CheckChangeInMaxPos()

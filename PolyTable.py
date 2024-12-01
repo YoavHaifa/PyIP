@@ -67,6 +67,12 @@ class CPolyTable:
         self.sumGain = 0
         self.aPatches = []
         self.iDebugSave = 0
+
+    def Set(self, tableOffsets):
+        self.tempTable = torch.zeros([nLayers,nRows,nDetectors])
+        self.tempTable[0] = torch.ones([nRows,nDetectors]) + tableOffsets
+        self.SaveTable(self.tempTable)
+        
         
     def InitPatches(self, best):
         if len(self.aPatches) > 0:
@@ -254,6 +260,10 @@ class CPolyTables:
         self.nTry = 0 
         self.nBetter = 0
         self.nNotBetter = 0
+        
+    def Set(self, tabs):
+        self.tables[0].Set(tabs[0])
+        self.tables[1].Set(tabs[1])
         
     def InitPatches(self, best):
         for table in self.tables:

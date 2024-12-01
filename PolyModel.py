@@ -36,20 +36,21 @@ class CPolyModel:
         self.CreateModel(nIn, nOut)
     
     def CreateModel(self, nIn, nOut):
+        print(f'<CPolyModel::CreateModel> {nIn=}, {nOut=}')
+        startTime = time.time()
         self.model = nn.Sequential(
-        nn.Linear(nIn, nOut),
-        nn.Sigmoid()
-        )
+            nn.Linear(nIn, nOut),
+            nn.Sigmoid()
+            )
+        deltaSec = time.time() - startTime
+        print(f'Model creaation consumed {deltaSec=} seconds')
 
 
 def main():
     nIn = nImages * maxRadius
     nOut = nRows * nDets
-    print(f'{nIn=}, {nOut=}')
     startTime0 = time.time()
     model = CPolyModel(nIn, nOut)
-    deltaSec = time.time() - startTime0
-    print(f'Model creaation consumed {deltaSec=} seconds')
     #PDiv = CExDiv.apply
     
     iVec = torch.randn(nIn)
