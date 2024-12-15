@@ -237,6 +237,12 @@ class CPolyTable:
         log.Log('---')
         self.prevAvg = avg
         
+    def Get(self, iRow, iCol):
+        return self.table[0, iRow, iCol]
+        
+    def SetValue(self, iRow, iCol, value):
+        self.table[0, iRow, iCol] = value
+        self.SaveTable(self.table)   
 
 class CPolyTables:
     """
@@ -338,6 +344,11 @@ class CPolyTables:
             self.nNotBetter += 1
             self.tables[self.iCurTab].Restore()
         
+    def Get(self, iTube, iRow, iCol):
+        return self.tables[iTube].Get(iRow, iCol)
+        
+    def SetValue(self, iTube, iRow, iCol, value):
+        self.tables[iTube].SetValue(iRow, iCol, value)
         
 """            
     def SaveDebug(self, iXrt):

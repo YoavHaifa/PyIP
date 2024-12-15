@@ -8,6 +8,7 @@ Configuration file for Poly Training
 import os
 from os import path
 import sys
+import shutil
 
 from Utils import VerifyJointDir, VerifyDir, VerifyDirIsNew, DeleteFilesInDir
 
@@ -17,16 +18,22 @@ sAiFlagRemoved = 'd:/Config/Poly/GetAiTable_x.txt'
 sfVolumeNominal = 'BP_nom_Output_width512_height512.float.rvol'
 sfVolumeAi = 'BP_PolyAI_Output_width512_height512.float.rvol'
 
+sfImpulseIndices = 'd:/Config/Poly/Impulse.txt'
+
+
 matrix = 256
 firstDelta = 0.001
 nToEvaluate = 200
 nToEvaluateTry = 10
 
+dump = 0 # 255
+debug = 3
+
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 31
-sExp = 'Targeted+W+O'
-sExp = 'try'
+iExperiment = 32
+sExp = '1point'
+#sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
@@ -37,14 +44,25 @@ sBestTabsDir = ''
 bInitialized = False
 
 verbosity = 1
+sfBPOutput = ''
+
+
 
 def SetBPOutputFileName(sPrefix):
+    global sfBPOutput
     s = sPrefix + f'_Output_width{matrix}_height{matrix}'
     if matrix == 256:
         s = s + '_zoom2'
     s = s + '.float.rvol'
-    s = path.join(sVolDir, s)
-    return s
+    sfBPOutput = path.join(sVolDir, s)
+    return sfBPOutput
+
+def SaveLastBpOutput(i):
+    if path.isfile(sfBPOutput):
+        sNewExt = f'_save{i}.float.rvol'
+        sfNew = sfBPOutput.replace('.float.rvol', sNewExt)
+        shutil.copyfile(sfBPOutput, sfNew)
+        print(f'Last BP output was saved as {sfNew}')
 
 def OnVolDirSet():
     global sfVolumeNominal, sfVolumeAi
@@ -149,6 +167,9 @@ def Clean():
         DeleteFilesInDir(sLogDir)
         DeleteFilesInDir(sBestTabsDir)
         #DeleteFilesInDir(sTabDir1)
+        
+    if path.exists(sfImpulseIndices):
+        os.remove(sfImpulseIndices)
 
 def WriteMatrixToFile(matrix, sfName, sfType='float'):
     nCols = matrix.shape[-1]

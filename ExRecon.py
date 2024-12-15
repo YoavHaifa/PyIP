@@ -12,6 +12,16 @@ from RunRecon import RunAiRecon, RunOriginalRecon, VeifyReconRunning
 
 gLoss = 0
 
+iTube = 0
+iRow = 70
+iDet = 300
+
+iImage = 163
+iRad = 30
+
+count = 0
+tabLen = 0
+
 class CExRecon(torch.autograd.Function):
     """
     We can implement our own custom autograd Functions by subclassing
@@ -28,14 +38,28 @@ class CExRecon(torch.autograd.Function):
         objects for use in the backward pass using the ctx.save_for_backward method.
         """
         #ctx.save_for_backward(input)
-        global gLoss
+        global gLoss, count, tabLen
         with torch.no_grad():
+            count += 1
             RunAiRecon('TryPolyStep')
+            if Config.dump & 16:
+                Config.SaveLastBpOutput(count)
+                
             loss = scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, sample)
 
-        dev = scorer.averagePerImageRing - scorer.targetAverage
-        absDev = dev.abs()
-        loss = absDev.mean()
+            dev = scorer.averagePerImageRing - scorer.targetAverage
+            if Config.dump & 4:
+                Config.WriteMatrixToFile(dev, f'DevMap_flatTab_save{count}')
+                
+            tabLen = len(tabs)
+            if tabLen == 1:
+                loss = abs(dev[iImage,iRad])
+                if Config.debug & 16:
+                    print(f'<forward> value {scorer.averagePerImageRing[iImage,iRad]}, target {scorer.targetAverage}')
+                    print(f'<forward> dev {dev[iImage,iRad]}, loss {loss}')
+            else:
+                absDev = dev.abs()
+                loss = absDev.mean()
         gLoss = loss
         return loss
 
@@ -48,11 +72,18 @@ class CExRecon(torch.autograd.Function):
         """
         #input, = ctx.saved_tensors
         #return grad_output * 1.5 * (5 * input ** 2 - 1)
-        print(f'{grad_output=}')
-        print(f'{grad_output.shape=}')
-        print(f'{gLoss=}')
-        tmp = torch.zeros([2,192,688])
-        tmp = gLoss
+        if Config.debug & 32:
+            print('<CExRecon::backward>')
+            print(f'On Entry {grad_output=}')
+            print(f'{grad_output.shape=}')
+        if Config.debug & 2:
+            lossVal = gLoss.item()
+            print(f'Loss {count}: {lossVal}')
+        value = gLoss.item()
+        if tabLen == 1:
+            tmp = torch.full([1], value)
+        else:
+            tmp = torch.full([2*192*688], value)
         return tmp, None, None
 
 

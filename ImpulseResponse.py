@@ -5,6 +5,7 @@ Create dataset for impulse-response
 @author: yoav.bar
 """
 
+import os
 from os import path
 import torch
 
@@ -17,16 +18,25 @@ matrix = 256
 nRows = 192
 nDets = 688
 
-iFirstRow = 0
-iFirstDet = 0
-iDeltaRow = 10
-iDeltaDet = 10
-nRunRows = 21
-nRunDets = 70
+bSingle = True
 
-sfIndices = 'd:/Config/Poly/Impulse.txt'
+if bSingle:
+    iFirstRow = 70
+    iFirstDet = 300
+    iDeltaRow = 10
+    iDeltaDet = 10
+    nRunRows = 1
+    nRunDets = 1
+else:
+    iFirstRow = 0
+    iFirstDet = 0
+    iDeltaRow = 10
+    iDeltaDet = 10
+    nRunRows = 21
+    nRunDets = 70
 
-sfVol = 'd:/PolyCalib/Impulse/Poli_AI_t1_r50_d302_width256_height256_zoom2.float.rvol'
+
+#sfVol = 'd:/PolyCalib/Impulse/Poli_AI_t1_r50_d302_width256_height256_zoom2.float.rvol'
 
 def AnalyzeIR(sfVolume, radIm, fCsv):
     vol = CVolume('scoredVol', sfVolume)
@@ -44,9 +54,9 @@ def AnalyzeIR(sfVolume, radIm, fCsv):
             print(f'Image {iIm} max {imMax}')
             iMaxIm = iIm
     
-    im = newVol[iMaxIm]
+    imWithMax = newVol[iMaxIm]
     halfMax = maxVol / 2
-    radAtHigh = torch.where(im > halfMax, radIm.image.pData, 0)
+    radAtHigh = torch.where(imWithMax > halfMax, radIm.image.pData, 0)
     n = torch.count_nonzero(radAtHigh)
     if n > 0:
         rad = radAtHigh.sum().item() / n
@@ -72,7 +82,7 @@ def CreateIR(iTube, radIm):
                 if iDet > nDets - 1:
                     iDet = nDets - 1
                 
-                with open(sfIndices,'w') as f:
+                with open(Config.sfImpulseIndices,'w') as f:
                     f.write(f'{iTube} {iRow} {iDet}\n')
                     
                 sfDump = f'Poli_AI_t{iTube}_r{iRow}_d{iDet}_width{matrix}_height{matrix}_zoom2.float.rvol'
@@ -80,6 +90,7 @@ def CreateIR(iTube, radIm):
                 RunAiRecon('CreateIR')
                 fCsv.write(f'{iRow}, {iDet}, ');
                 AnalyzeIR(Config.sfVolumeAi, radIm, fCsv)
+                os.remove(Config.sfImpulseIndices)
                 if iDet == nDets - 1:
                     break
             if iRow == nRows - 1:

@@ -282,21 +282,23 @@ class CPolyDLTrainer:
         model = CPolyModel(nIn, nOut)
         End('TrainDL')
         
-        PRecon = CExRecon.apply
+        ApplyRecon = CExRecon.apply
         optimizer = optim.Adam(model.model.parameters(), lr=0.001)
         
         for i in range(nTrials):
             tabs = model.model(tInput)
             tabs = tabs / 100 - 0.005
-            tabs = tabs.view(-1,nRows,nDetectors)
-            print(f'{tabs=}')
-            print(f'{tabs.size()=}')
+            tabs1 = tabs.view(-1,nRows,nDetectors)
+            #print(f'{tabs=}')
+            #print(f'{tabs.size()=}')
             with torch.no_grad():
-                self.tableGenerator.Set(tabs)
+                self.tableGenerator.Set(tabs1)
                 
-            loss = PRecon(tabs, self.scorer, self.sample)
+            loss = ApplyRecon(tabs, self.scorer, self.sample)
             optimizer.zero_grad()
+            #print(f'CALL loss.backward(), {loss=}')
             loss.backward()
+            #print('optimizer.step()')
             optimizer.step()
 
      
@@ -305,7 +307,7 @@ class CPolyDLTrainer:
 def main():
     VeifyReconRunning()
     bShort = False
-    nShort = 1
+    nShort = 5
     #bShort = True
     if Config.sExp == 'try':
         bShort = True

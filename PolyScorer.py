@@ -138,7 +138,8 @@ class CPolyScorer:
         #stdSqr = torch.square(relevant)
         #self.flatnessScore = stdSqr.mean()
         
-    def OldComputeAverage(self):
+    def OldComputeAverage(self, bSikpFirst=False):
+        print('*** <OldComputeAverage>')
         if self.nSummed > 0:
             self.average = self.sum / self.nSummed
             #print(f'Average {self.average} = sum {self.sum} / n {self.nSummed}')
@@ -148,13 +149,13 @@ class CPolyScorer:
         self.averageDiff = 0
         self.averageScore = 0
         
-        if self.originalAverage == 0:
+        if self.originalAverage == 0 and not bSikpFirst:
             self.originalAverage = self.average
             print(f'<Score> Original Average is {self.originalAverage}')
         elif not self.bTargetDefined:
             self.targetAverage = self.average
             self.bTargetDefined = True
-            print(f'<Score> Flat Average is {self.targetAverage}')
+            print(f'<Score> Flat Average - training TARGET - is set to {self.targetAverage}')
         else:
             self.averageDiff = self.targetAverage - self.average
 
@@ -171,7 +172,7 @@ class CPolyScorer:
             print('<ComputeNewScoreOfVolume> - target not defined yet!')
             return
             
-        Start('ComputeNewScoreOfVolume')
+        Start('ComputeNewScoreOfVolume1')
         if verbosity > 1:
             print('<CPolyScorer::ComputeNewScoreOfVolume> ', sfVolume)
         Log(f'<CPolyScorer::ComputeNewScoreOfVolume> {sfVolume}')
@@ -181,12 +182,14 @@ class CPolyScorer:
         self.nImages = sample.nImages
         self.nRadiusesPerImage = sample.nRadiusesPerImage
         self.ScoreAllImages(vol, sample)
+        End('ComputeNewScoreOfVolume1')
         
     def ComputeNewScoreOfVolume2(self):
         self.bMaxImproved = False
         #if self.count > 0:
         #    self.CheckChangeInMaxPos()
         #if not self.bMaxImproved:
+        Start('ComputeNewScoreOfVolume')
         self.devRaster = CDevRaster(self.targetAverage, self.averagePerImageRing)
 
         # LOG
@@ -207,7 +210,8 @@ class CPolyScorer:
         End('ComputeNewScoreOfVolume')
         return self.newScore
         
-    def OldScore(self, sfVolume, sample):
+    def OldScore(self, sfVolume, sample, bSikpFirst=False):
+        print('*** <OldScore>')
         Start('OldScore')
         vol = CVolume('scoredVol', sfVolume)
         if verbosity > 1:
@@ -220,7 +224,7 @@ class CPolyScorer:
         self.nRadiusesPerImage = sample.nRadiusesPerImage
         self.ScoreAllImages(vol, sample)
         
-        self.OldComputeAverage()
+        self.OldComputeAverage(bSikpFirst)
         
         #self.oldScore = self.flatnessScore + self.rangeScore + self.averageScore
         self.oldScore = self.rangeScoreH + self.rangeScoreQ + self.averageScore
