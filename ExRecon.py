@@ -9,8 +9,10 @@ import torch
 
 import Config
 from RunRecon import RunAiRecon, RunOriginalRecon, VeifyReconRunning
+from CsvLog import gCsvLog
 
 gLoss = 0
+signedLoss = 0
 
 iTube = 0
 iRow = 70
@@ -38,7 +40,7 @@ class CExRecon(torch.autograd.Function):
         objects for use in the backward pass using the ctx.save_for_backward method.
         """
         #ctx.save_for_backward(input)
-        global gLoss, count, tabLen
+        global gLoss, count, tabLen, signedLoss
         with torch.no_grad():
             count += 1
             RunAiRecon('TryPolyStep')
@@ -53,7 +55,9 @@ class CExRecon(torch.autograd.Function):
                 
             tabLen = len(tabs)
             if tabLen == 1:
-                loss = abs(dev[iImage,iRad])
+                signedLoss = dev[iImage,iRad]
+                gCsvLog.AddItem(signedLoss)
+                loss = abs(signedLoss)
                 if Config.debug & 16:
                     print(f'<forward> value {scorer.averagePerImageRing[iImage,iRad]}, target {scorer.targetAverage}')
                     print(f'<forward> dev {dev[iImage,iRad]}, loss {loss}')
@@ -72,6 +76,7 @@ class CExRecon(torch.autograd.Function):
         """
         #input, = ctx.saved_tensors
         #return grad_output * 1.5 * (5 * input ** 2 - 1)
+        print(f'<CExRecon::backward> dev {signedLoss.item()}')
         if Config.debug & 32:
             print('<CExRecon::backward>')
             print(f'On Entry {grad_output=}')
@@ -79,7 +84,8 @@ class CExRecon(torch.autograd.Function):
         if Config.debug & 2:
             lossVal = gLoss.item()
             print(f'Loss {count}: {lossVal}')
-        value = gLoss.item()
+        value = abs(signedLoss.item())
+        #gCsvLog.AddItem(value)
         if tabLen == 1:
             tmp = torch.full([1], value)
         else:

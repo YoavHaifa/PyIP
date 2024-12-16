@@ -31,9 +31,9 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 32
+iExperiment = 33
 sExp = '1point'
-#sExp = 'try'
+sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'

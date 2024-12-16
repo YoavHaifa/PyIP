@@ -19,6 +19,7 @@ ratioThreshold = 0.10
 deltaFactor = 0.8
 
 verbosity = 1
+bLogPatch = False
 
 class CPatchStat:
     """
@@ -86,8 +87,9 @@ class CPatch:
             
             # Log all better transactions
             ratio = self.stat.BetterRatio()
-            with open(self.sfLog, 'a') as f:
-                f.write(f'{self.delta}, {self.nTry}, {self.nBetter}, {score}, {ratio:.2f}\n')
+            if bLogPatch:
+                with open(self.sfLog, 'a') as f:
+                    f.write(f'{self.delta}, {self.nTry}, {self.nBetter}, {score}, {ratio:.2f}\n')
                 
         else:
             self.lastBest = prevBest # Might have improved due to another patch/table
@@ -98,7 +100,8 @@ class CPatch:
             if ratio < ratioThreshold:
                 self.delta = abs(self.delta) * deltaFactor
                 print(f'\n<{self.sName}> Delta reduced to {self.delta}')
-            self.stat.OnEnd(self.sfLogStat)
+            if bLogPatch:
+                self.stat.OnEnd(self.sfLogStat)
             self.stat = CPatchStat(self.lastBest, self.delta, self.nTry)
   
 
@@ -130,13 +133,15 @@ class CCircularPatch(CPatch):
                 if distance < radius:
                     self.raster[iLine, iCol] =1 - distance / radius
                     
-        self.sfLog = Config.LogFileName(f'CircPatchAll_xrt{iXrt}_radius{radius}.csv')
-        with open(self.sfLog, 'w') as f:
-            f.write('delta, nTry, nBetter, best, ratio\n')
+        if bLogPatch:
+            self.sfLog = Config.LogFileName(f'CircPatchAll_xrt{iXrt}_radius{radius}.csv')
+            with open(self.sfLog, 'w') as f:
+                f.write('delta, nTry, nBetter, best, ratio\n')
             
-        self.sfLogStat =  Config.LogFileName(f'CircPatchStat_xrt{iXrt}_radius{radius}.csv')
-        with open(self.sfLogStat, 'w') as f:
-            f.write('delta, iFirst, nTry, nBetter, start, best, ratio\n')
+        if bLogPatch:
+            self.sfLogStat =  Config.LogFileName(f'CircPatchStat_xrt{iXrt}_radius{radius}.csv')
+            with open(self.sfLogStat, 'w') as f:
+                f.write('delta, iFirst, nTry, nBetter, start, best, ratio\n')
 
     def Add(self, table):
         self.nTry += 1

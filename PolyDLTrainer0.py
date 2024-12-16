@@ -6,6 +6,7 @@ Train Poly Table for a single or few points
 """
 
 import sys
+from os import path
 import torch
 import torch.optim as optim
 
@@ -20,6 +21,8 @@ from MaskVolume import CMaskVolume
 from Volume import CVolume
 from PolyModel import CPolyModel
 from ExRecon import CExRecon
+from Utils import GetAbortFileName
+from CsvLog import gCsvLog
 
 iTube = 0
 iRow = 70
@@ -46,6 +49,7 @@ class CPolyDLTrainer0:
         self.originalVol = CVolume('nominalVol', Config.sfVolumeNominal)
         self.maskVol = CMaskVolume(self.originalVol)
         self.sample = CSample(self.maskVol, self.radIm)
+        self.sfAbort = GetAbortFileName()
         
     def RunInitialTable(self):
         print('*** <RunInitialTable>')
@@ -79,22 +83,32 @@ class CPolyDLTrainer0:
         self.secondDevMap = self.scorer.devRaster.dev.clone()
         Config.WriteMatrixToFile(self.secondDevMap, f'DevMap_second_t{iTube}_r{iRow}_d{iDet}')
         
+    def NextLR(self):
+        self.curLR = self.curLR / 2 
+        self.optimizer.param_groups[0]['lr'] = self.curLR
+        print(f'LR reduced to {self.curLR}')
         
     def TrainDL0(self, nTrials):
         Start('TrainDL')
-        nIn = nSmallInput # nImages * maxRadius
-        tInput = torch.ones(nSmallInput)
+        nIn = 1 #nSmallInput # nImages * maxRadius
+        tInput = torch.ones(nIn)
         #nOut = nRows * nDetectors * 2
         nOut = 1
         print(f'{nIn=}, {nOut=}')
         model = CPolyModel(nIn, nOut)
         
         ApplyRecon = CExRecon.apply
-        optimizer = optim.Adam(model.model.parameters(), lr=0.001)
+        self.curLR = 0.1
+        self.optimizer = optim.SGD(model.model.parameters(), lr=self.curLR)
+        bestLoss = 1000000
+        prevLoss = bestLoss
         
         for i in range(nTrials):
+            gCsvLog.StartNewLine()
+            gCsvLog.AddItem(self.curLR)
             tabs1 = model.model(tInput)
             tabs1 = tabs1 / 100 - 0.005 + 1.0
+            gCsvLog.AddItem(tabs1[0])
             #tabs1 = tabs.view(-1,nRows,nDetectors)
             if Config.debug & 8:
                 print(f'{tabs1=}')
@@ -104,11 +118,30 @@ class CPolyDLTrainer0:
                 self.tableGenerator.SetValue(iTube, iRow, iDet, tabs1[0])
                 
             loss = ApplyRecon(tabs1, self.scorer, self.sample)
-            optimizer.zero_grad()
+            gCsvLog.AddLastItem(loss)
+            if i == 0:
+                bestLoss = loss
+            elif loss < bestLoss:
+                bestLoss = loss
+            elif loss > prevLoss and self.curLR > 0.001:
+                self.NextLR()                
+            elif loss > 2*bestLoss:
+                print('Quitting on bad direction...')
+                break
+            prevLoss - loss
+                
+            self.optimizer.zero_grad()
             #print(f'CALL loss.backward(), {loss=}')
             loss.backward()
             #print('optimizer.step()')
-            optimizer.step()
+            self.optimizer.step()
+            
+            if loss < 1.0 and self.curLR == 0.1:
+                self.NextLR()                
+            
+            if path.exists(self.sfAbort):
+                print('Aborting...')
+                break
             
         End('TrainDL')
 
@@ -116,7 +149,7 @@ def main():
     VeifyReconRunning()
     bDummy = False
     bShort = False
-    nShort = 10
+    nShort = 100
     #bShort = True
     if Config.sExp == 'try':
         bShort = True
