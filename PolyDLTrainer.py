@@ -109,8 +109,7 @@ class CPolyDLTrainer:
         self.tableGenerator = CPolyTables() # Prepares initial table
         RunAiRecon('InitialTable')
         self.firstOldScore = self.scorer.OldScore(Config.sfVolumeAi, self.sample)
-        self.scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, self.sample)
-        self.firstScore = self.scorer.ComputeNewScoreOfVolume2()
+        self.firstScore = self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample)
         s = f'<RunInitialTable> first score {self.firstScore}'
         print(s)
         Log(s)

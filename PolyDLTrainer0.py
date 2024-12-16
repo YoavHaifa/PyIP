@@ -28,6 +28,9 @@ iTube = 0
 iRow = 70
 iDet = 300
 
+iImage = 163
+iRad = 30
+
 
 nDetectors = 688
 nRows = 192
@@ -36,6 +39,10 @@ nLayers = 3
 nSmallInput = 10
 
 sfOriginalVolume = ''
+
+firstStepAmplitude = 0.001
+
+debug = 1
 
 class CPolyDLTrainer0:
     """
@@ -50,17 +57,16 @@ class CPolyDLTrainer0:
         self.maskVol = CMaskVolume(self.originalVol)
         self.sample = CSample(self.maskVol, self.radIm)
         self.sfAbort = GetAbortFileName()
+        self.correctionFraction = 0.1
+        self.count = 0
         
     def RunInitialTable(self):
         print('*** <RunInitialTable>')
+        self.count += 1
         self.tableGenerator = CPolyTables() # Prepares initial table
         RunAiRecon('InitialTable')
         self.firstOldScore = self.scorer.OldScore(Config.sfVolumeAi, self.sample, bSikpFirst=True)
-        self.scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, self.sample)
-        self.firstScore = self.scorer.ComputeNewScoreOfVolume2()
-        s = f'<RunInitialTable> first score {self.firstScore}'
-        print(s)
-        Log(s)
+        self.firstScore = self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample, bSingle=True)
         self.bestScore = self.firstScore
         self.tableGenerator.InitPatches(self.bestScore)
         
@@ -68,17 +74,85 @@ class CPolyDLTrainer0:
         #self.sfImproveCsv = self.OpenCsv('Training_Improve.csv')
         
         self.initialDevMap = self.scorer.devRaster.dev.clone()
+        self.initialDevAtPoint = self.initialDevMap[iImage, iRad]
         Config.WriteMatrixToFile(self.initialDevMap, 'DevMap_flatTab_initial')
         
-        Config.SaveAiVolume(0)
+        Config.SaveAiVolume(self.count)
+        s = f'<RunInitialTable> dev at point {self.initialDevAtPoint}, first score {self.firstScore}'
+        print(s)
+        Log(s)
+    
+    def RunSecondTable(self):
+        print('*** <RunSecondTable>')
+        self.count += 1
+        self.prevTabValue = 1
+        if self.initialDevAtPoint < 0:
+            self.tabValue = 1 + firstStepAmplitude
+        else:
+            self.tabValue = 1 - firstStepAmplitude
+                
+        self.tableGenerator.SetValue(iTube, iRow, iDet, self.tabValue)
+        RunAiRecon('SecondTable')
+        self.secondScore = self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample, bSingle=True)
+        if self.secondScore < self.bestScore:
+            self.bestScore = self.secondScore
+            
+        self.secondDevMap = self.scorer.devRaster.dev.clone()
+        Config.WriteMatrixToFile(self.secondDevMap, 'DevMap_Tab_second')
         
+        Config.SaveAiVolume(self.count)
+        self.prevDevAtPoint = self.initialDevAtPoint
+        self.devAtPoint = self.secondDevMap[iImage, iRad]
+        if abs(self.devAtPoint) > abs(self.prevDevAtPoint):
+            self.prevDevAtPoint, self.devAtPoint = self.devAtPoint, self.prevDevAtPoint
+            self.prevTabValue, self.tabValue = self.tabValue, self.prevTabValue
+            print('<RunSecondTable> SWAP first and secon')
+        devDiff = self.devAtPoint - self.prevDevAtPoint
+        print(f'<RunSecondTable> tabValue {self.tabValue}, dev {self.prevDevAtPoint} --> {self.devAtPoint}, diff {devDiff}')
+    
+    def RunNextTable(self):
+        self.count += 1
+        if debug & 2:
+            print('*** <RunNextTable> {self.count}')
+        deltaTab = self.tabValue - self.prevTabValue
+        deltaDev = self.devAtPoint - self.prevDevAtPoint
+        self.prevTabValue = self.tabValue
+        if deltaTab != 0 and deltaDev != 0:
+            self.gradient = abs(deltaDev / deltaTab)
+            if debug & 4:
+                print(f'<RunNextTable> deltaTab {deltaTab}, deltaDev {deltaDev}, gradient {self.gradient}')
+            self.deltaAmp = abs(self.devAtPoint / self.gradient * self.correctionFraction)
+            if self.devAtPoint < 0:
+                self.tabValue = self.prevTabValue + self.deltaAmp
+            else:
+                self.tabValue = self.prevTabValue - self.deltaAmp
+            if debug & 4:
+                print(f'<RunNextTable> deltaAmp {self.deltaAmp}, dev {self.devAtPoint}, tab {self.prevTabValue} -> {self.tabValue}')
+        else:
+            print('No Gradient')
+            sys.exit()
+                
+        self.tableGenerator.SetValue(iTube, iRow, iDet, self.tabValue)
+        RunAiRecon('3rdTable')
+        self.lastScore = self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample, bSingle=True)
+        if self.lastScore < self.bestScore:
+            self.bestScore = self.lastScore
+            
+        self.lastDevMap = self.scorer.devRaster.dev.clone()
+        if debug & 8:
+            Config.WriteMatrixToFile(self.lastDevMap, 'DevMap_Tab_3rd')
+        
+        #Config.SaveAiVolume(self.count)
+        self.prevDevAtPoint = self.devAtPoint
+        self.devAtPoint = self.lastDevMap[iImage, iRad]
+        devDiff = self.devAtPoint - self.prevDevAtPoint
+        print(f'<RunNextTable {self.count}> tabValue {self.tabValue:.6f}, dev {self.prevDevAtPoint:.6f} --> {self.devAtPoint:.6f}, diff {devDiff:.6f}')
 
     def TrySingleTableSpot(self, iTube, iRow, iDet):
         print(f'<TrySingleTableSpot> {iTube=},  {iRow=}, {iDet=}')
         self.tableGenerator.SetValue(iTube, iRow, iDet, 2)
         RunAiRecon('SecondTable')
-        self.scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, self.sample)
-        self.secondScore = self.scorer.ComputeNewScoreOfVolume2()
+        self.secondScore = self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample, bSingle=True)
         print(f'<RunInitialTable> second score {self.secondScore}')
         self.secondDevMap = self.scorer.devRaster.dev.clone()
         Config.WriteMatrixToFile(self.secondDevMap, f'DevMap_second_t{iTube}_r{iRow}_d{iDet}')
@@ -144,6 +218,16 @@ class CPolyDLTrainer0:
                 break
             
         End('TrainDL')
+        
+    def Train0(self):
+        Start('Train0')
+        for i in range(50):
+            self.RunNextTable()
+                
+            if path.exists(self.sfAbort):
+                print('Aborting...')
+                break
+        End('Train0')
 
 def main():
     VeifyReconRunning()
@@ -159,6 +243,9 @@ def main():
     trainer = CPolyDLTrainer0(1)
     #trainer.RunOriginalReconAndScore()
     trainer.RunInitialTable()
+    trainer.RunSecondTable()
+    trainer.Train0()
+    sys.exit()
     
     if bDummy:
         trainer.TrySingleTableSpot(iTube, iRow, iDet)

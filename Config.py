@@ -47,6 +47,9 @@ verbosity = 1
 sfBPOutput = ''
 
 
+iImage = 163
+iRad = 30
+
 
 def SetBPOutputFileName(sPrefix):
     global sfBPOutput

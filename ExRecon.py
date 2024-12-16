@@ -47,7 +47,7 @@ class CExRecon(torch.autograd.Function):
             if Config.dump & 16:
                 Config.SaveLastBpOutput(count)
                 
-            loss = scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, sample)
+            scorer.ComputeNewScoreOfVolume1(Config.sfVolumeAi, sample)
 
             dev = scorer.averagePerImageRing - scorer.targetAverage
             if Config.dump & 4:

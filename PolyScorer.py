@@ -22,6 +22,7 @@ maxImages = 280
 HIGH_SCORE = 1000000
 
 verbosity = 1
+debug = 0
 
 #sSavedVolume = 'BP_PolyAI_Output_width512_height512_save4000.float.rvol'
 
@@ -166,6 +167,10 @@ class CPolyScorer:
         relevanDelatAvg = self.deltaAveragePerImage[0:self.nImagesScored]
         self.averageScore = relevanDelatAvg.mean()
         
+    def ComputeNewScoreOfVolume12(self, sfVolume, sample, bSingle = False):
+        self.ComputeNewScoreOfVolume1(sfVolume, sample)
+        return self.ComputeNewScoreOfVolume2(bSingle)
+        
     def ComputeNewScoreOfVolume1(self, sfVolume, sample):
         if not self.bTargetDefined:
             self.newScore = HIGH_SCORE
@@ -184,7 +189,7 @@ class CPolyScorer:
         self.ScoreAllImages(vol, sample)
         End('ComputeNewScoreOfVolume1')
         
-    def ComputeNewScoreOfVolume2(self):
+    def ComputeNewScoreOfVolume2(self, bSingle = False):
         self.bMaxImproved = False
         #if self.count > 0:
         #    self.CheckChangeInMaxPos()
@@ -193,7 +198,14 @@ class CPolyScorer:
         self.devRaster = CDevRaster(self.targetAverage, self.averagePerImageRing)
 
         # LOG
-        self.newScore = self.devRaster.score
+        if bSingle:
+            self.newScore = self.devRaster.dev[Config.iImage, Config.iRad]
+            if debug:
+                print(f'<ComputeNewScoreOfVolume2> NEW SCORE 1 at [{Config.iImage}, {Config.iRad}] = {self.newScore}')
+        else:
+            self.newScore = self.devRaster.score
+            if debug:
+                print(f'<ComputeNewScoreOfVolume2> NEW SCORE ALL at [{Config.iImage}, {Config.iRad}] = {self.newScore}')
         diff = self.newScore - self.bestScore
         #Log(f'<<ComputeNewScore>> score {self.bestScore} ==> {newScore} (diff {diff})')
         if self.newScore < self.bestScore:
