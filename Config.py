@@ -31,7 +31,7 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 34
+iExperiment = 35
 sExp = '1point'
 sExp = 'try'
 bDeleteOnStart = False
