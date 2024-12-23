@@ -38,6 +38,7 @@ bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
 sVolDir = ''
+sDevDir = ''
 #sTabDir0 = ''
 #sTabDir1 = ''
 sBestTabsDir = ''
@@ -85,7 +86,7 @@ def SetSpecialVolDir(sSpecialVolDir):
         sys.exit()
 
 def OnInitRun():
-    global sBaseDir, sLogDir, sVolDir
+    global sBaseDir, sLogDir, sVolDir, sDevDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
     global sBestTabsDir, nToEvaluate
     
@@ -103,6 +104,7 @@ def OnInitRun():
     sBaseDir = VerifyJointDir(sfRoot, sDirName)
     
     sLogDir = VerifyJointDir(sBaseDir, 'Log')
+    sDevDir = VerifyJointDir(sBaseDir, 'Dev')
     
     if sVolDir == '':
         sVolDir = VerifyJointDir(sBaseDir, 'Vol')
@@ -168,6 +170,7 @@ def Clean():
     if bDeleteOnStart:
         DeleteFilesInDir(sVolDir)
         DeleteFilesInDir(sLogDir)
+        DeleteFilesInDir(sDevDir)
         DeleteFilesInDir(sBestTabsDir)
         #DeleteFilesInDir(sTabDir1)
         
@@ -184,6 +187,17 @@ def WriteMatrixToFile(matrix, sfName, sfType='float'):
     with open (sfFullName, 'wb') as file:
         file.write(npmat.tobytes())
     print('Matrix saved:', sfFullName)
+
+def WriteDevToFile(devMap, sfName, sfType='float'):
+    nCols = devMap.shape[-1]
+    nLines = devMap.shape[-2]
+    sfName = sfName + f'_width{nCols}_height{nLines}.{sfType}.rmat'
+    sfFullName = path.join(sDevDir, sfName)
+    
+    npmat = devMap.numpy()
+    with open (sfFullName, 'wb') as file:
+        file.write(npmat.tobytes())
+    print('Dev map saved:', sfFullName)
     
 def main():
     OnInitRun()
