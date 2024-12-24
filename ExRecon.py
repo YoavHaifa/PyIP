@@ -56,7 +56,7 @@ class CExRecon(torch.autograd.Function):
             tabLen = len(tabs)
             if tabLen == 1:
                 signedLoss = dev[iImage,iRad]
-                gCsvLog.AddItem(signedLoss)
+                #gCsvLog.AddItem(signedLoss)
                 loss = abs(signedLoss)
                 if Config.debug & 16:
                     print(f'<forward> value {scorer.averagePerImageRing[iImage,iRad]}, target {scorer.targetAverage}')

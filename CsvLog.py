@@ -7,16 +7,18 @@ Log CSV for analyzing training progress
 
 import Config
 
+debug = 15
+
 class CCsvLog():
     """
     """
-    def __init__(self, sTitle):
+    def __init__(self, sfName, sTitle):
         """
         """
         self.count = 0
         self.nElements = sTitle.count(',') + 1
         self.nInCurLine = 0
-        self.sfName = Config.LogFileName('Trainer.csv')
+        self.sfName = Config.LogFileName(sfName)
         self.nWarnings = 0
         
         with open(self.sfName, 'w') as f:
@@ -28,12 +30,16 @@ class CCsvLog():
         self.nInCurLine = 1
         
     def AddItem(self, value):
+        if debug:
+            print('<AddItem>', value)
         if self.nInCurLine == 0:
             self.StartNewLine()
         self.s = self.s + f', {value}'
         self.nInCurLine += 1
         
     def AddLastItem(self, value):
+        if debug:
+            print('<AddLastItem>', value)
         self.AddItem(value)
         if self.nInCurLine != self.nElements:
             self.nWarnings += 1
@@ -46,9 +52,8 @@ class CCsvLog():
             
         self.s = ''
         self.nInCurLine = 0
-        
 
-gCsvLog = CCsvLog('i, lr, tab, dev, loss')
+gCsvLog = CCsvLog('Train_tab_value.csv', 'i, tab, g00, g01, g10, g11, d00, d01, d10, d11, score')
 
 
 def main():

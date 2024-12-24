@@ -22,7 +22,7 @@ from Volume import CVolume
 from PolyModel import CPolyModel
 from ExRecon import CExRecon
 from Utils import GetAbortFileName
-from CsvLog import gCsvLog
+from CsvLog import gCsvLog, CCsvLog
 
 iTube = 0
 iRow = 70
@@ -41,6 +41,7 @@ nSmallInput = 10
 sfOriginalVolume = ''
 
 firstStepAmplitude = 0.001
+gCsvLog = CCsvLog('Trainer.csv', 'i, lr, tab, dev, loss')
 
 debug = 1
 

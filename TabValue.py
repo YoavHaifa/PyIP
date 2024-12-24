@@ -20,13 +20,16 @@ from Sample import CSample
 from RadiusImage import CRadiusImage
 from MaskVolume import CMaskVolume
 from Volume import CVolume
+from CsvLog import gCsvLog
+from Utils import GetAbortFileName
 
 
 sIRDir = 'D:/PolyCalib/Impulse/Impulse_r67_1_70_c170_1_346'
 sfIR = 'Tube0_IR_grid_r67_d170.csv'
+sfAbort = GetAbortFileName()
 
 firstStepAmplitude = 0.001
-LRFraction = 0.1
+LRFraction = 0.01
 
 verbosity = 1
 
@@ -49,30 +52,45 @@ class CTabValue:
         self.deltaDev = None
         self.deltaTable = None
         self.grad = None
+        self.score = 1000
         self.prevTabValue = 1.0
+        self.nBad = 0
 
     def SetInitialDev(self, devMap):
         self.initialDev = devMap[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
+        self.dev = self.initialDev.clone()
         self.prevDev = self.initialDev.clone()
         self.prevTabValue = 1.0
+        for d in self.dev.view(4):
+            gCsvLog.AddItem(d.item())
+        self.score = self.dev.abs().mean().item()
+        gCsvLog.AddLastItem(self.score)
 
-    def SetSecondDev(self, devMap):
-        self.secondDev = devMap[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
-        self.dev = self.secondDev.clone()
-        self.deltaDev = self.dev - self.prevDev
-        if self.deltaTable != 0:
-            self.grad = self.deltaDev / self.deltaTable
-        else:
-            self.grad = torch.ones([2,2])
-
-    def SetNextDev(self, devMap):
+    def SetNextDev(self, devMap, i):
+        # Save previous value
         self.prevDev = self.dev
+        self.prevScore = self.score
+        # Set new
         self.dev = devMap[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
+        print('<SetNextDev> add dev and score')
+        for d in self.dev.view(4):
+            gCsvLog.AddItem(d.item())
+        self.score = self.dev.abs().mean().item()
+        gCsvLog.AddLastItem(self.score)
         self.deltaDev = self.dev - self.prevDev
         if self.deltaTable != 0:
             self.grad = self.deltaDev / self.deltaTable
         else:
+            print('<SetNextDev> WARNING: deltaTable was 0!')
             self.grad = torch.ones([2,2])
+
+        if self.score > self.prevScore:
+            self.nBad += 1 
+            self.Print()
+            print(f'<SetNextDev> with WORSE SCORE {self.nBad} ({self.score:.3f} > {self.prevScore:.3f})')
+            if self.nBad > 2:
+                self.ShortPrint(i)
+                sys.exit()
         
     def AdjustTable(self, tabGen, delta):
         self.tabValue = self.prevTabValue + delta
@@ -80,6 +98,9 @@ class CTabValue:
         self.deltaTable = self.tabValue - self.prevTabValue
         
     def StepFrom(self, tabValue, dev, tabGen):
+        print('<StepFrom> add grad')
+        for g in self.grad.view(4):
+            gCsvLog.AddItem(g.item())
         multiStep = dev / self.grad
         self.deltaTable = multiStep.sum().item() * LRFraction
         if verbosity > 2:
@@ -90,16 +111,16 @@ class CTabValue:
         self.dev = dev
         self.prevTabValue = tabValue
         self.tabValue = tabValue + self.deltaTable
+        print('<StepFrom> add table')
+        gCsvLog.AddItem(self.tabValue)
         tabGen.SetValue(self.iTube, self.iRow, self.iDet, self.tabValue)
         if verbosity > 2:
             print(f'<StepFrom> {self.tabValue=}')
         
         
     def Step(self, tabGen):
-        prevDevAvg = self.prevDev.mean().item()
-        devAvg = self.dev.mean().item()
-        if abs(prevDevAvg) < abs(devAvg):
-            print('<Step> from PrevDev')
+        if abs(self.prevScore) < abs(self.score):
+            print('<Step> WARNING - *** from PrevDev ***')
             self.StepFrom(self.prevTabValue, self.prevDev, tabGen)
         else:
             if verbosity > 2:
@@ -111,18 +132,19 @@ class CTabValue:
         if self.prevDev is not None:
             print(f'{self.prevDev=}')
         if self.dev is not None:
-            print(f'{self.dev=}')
+            print(f'{self.dev=}, score {self.score:.3f}')
         if self.deltaDev is not None:
             print(f'{self.deltaDev=}')
             
         if self.deltaTable is not None:
-            print(f'Table {self.prevTabValue} --> {self.tabValue}, delta {self.deltaTable}')
+            print(f'Table {self.prevTabValue*1000:.3f} --> {self.tabValue*1000:.3f}, delta {self.deltaTable*1000:.3f}')
         if self.grad is not None:
             print(f'{self.grad=}')
         
     def ShortPrint(self, i):
         dev = self.dev
-        print(f'<TV-{i}> {self.tabValue} -> {dev[0,0]:.3f}, {dev[0,1]:.3f}, {dev[1,0]:.3f}, {dev[1,1]:.3f}, ')
+        val1000 = self.tabValue * 1000
+        print(f'<TV-{i}> {val1000:.3f} -> {dev[0,0]:.3f}, {dev[0,1]:.3f}, {dev[1,0]:.3f}, {dev[1,1]:.3f}, score {self.score:.3f}')
 
 def ReadData(sfName):
     print('<ReadData>', sfName)
@@ -157,7 +179,8 @@ def RunSecondTable(tabVal, scorer, sample, tableGenerator):
     return secondDevMap
 
 def RunNextTable(scorer, sample):
-    print('*** <RunSecondTable>')
+    if verbosity > 2:
+        print('*** <RunNextTable>')
            
     RunAiRecon('NextTable')
     scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, sample)
@@ -166,13 +189,27 @@ def RunNextTable(scorer, sample):
     return devMap
 
 def Train(tabVal, tableGenerator, scorer, sample):
-    for i in range(1,11):
+    for i in range(2,3):
+        gCsvLog.StartNewLine()
         tabVal.Step(tableGenerator)
         devMap = RunNextTable(scorer, sample)
-        tabVal.SetNextDev(devMap)
+        tabVal.SetNextDev(devMap, i)
         tabVal.ShortPrint(i)
+        
+        if path.exists(sfAbort):
+            print('Aborting...')
+            break
+
+def TryCsv():
+    gCsvLog.StartNewLine()
+    gCsvLog.AddItem(3)
+    gCsvLog.AddLastItem(100)
+    sys.exit()
+    
 
 def main():
+    #TryCsv()
+    
     print('*** Read Impulse Response Data')
     VeifyReconRunning()
     sfName = path.join(sIRDir, sfIR)
@@ -188,6 +225,11 @@ def main():
     tableGenerator = CPolyTables() # Prepares initial table
 
     # Run Initial
+    gCsvLog.StartNewLine()
+    gCsvLog.AddItem(1.0)
+    for i in range(4):
+        gCsvLog.AddItem(0)
+        
     initialDevMap = RunInitialTable(scorer, sample, tableGenerator)
     Config.WriteDevToFile(initialDevMap, 'flatTab_initial')
 
@@ -197,13 +239,13 @@ def main():
     #Run Second
     secondDevMap = RunSecondTable(tabVal, scorer, sample, tableGenerator)
     Config.WriteDevToFile(secondDevMap, 'Tab_second')
-    tabVal.SetSecondDev(secondDevMap)
+    tabVal.SetNextDev(secondDevMap, 0)
     tabVal.Print()
     
     # Try Step
     tabVal.Step(tableGenerator)
     devMap = RunNextTable(scorer, sample)
-    tabVal.SetNextDev(devMap)
+    tabVal.SetNextDev(devMap, 1)
     tabVal.Print()
     tabVal.ShortPrint(0)
     
