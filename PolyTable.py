@@ -240,6 +240,9 @@ class CPolyTable:
     def Get(self, iRow, iCol):
         return self.table[0, iRow, iCol]
         
+    def SetValueLocally(self, iRow, iCol, value):
+        self.table[0, iRow, iCol] = value
+        
     def SetValue(self, iRow, iCol, value):
         self.table[0, iRow, iCol] = value
         self.SaveTable(self.table)   
@@ -347,8 +350,14 @@ class CPolyTables:
     def Get(self, iTube, iRow, iCol):
         return self.tables[iTube].Get(iRow, iCol)
         
+    def SetValueLocally(self, iTube, iRow, iCol, value):
+        self.tables[iTube].SetValueLocally(iRow, iCol, value)
+        
     def SetValue(self, iTube, iRow, iCol, value):
         self.tables[iTube].SetValue(iRow, iCol, value)
+        
+    def SaveTable(self, iTube):
+        self.tables[iTube].Save()
         
 """            
     def SaveDebug(self, iXrt):

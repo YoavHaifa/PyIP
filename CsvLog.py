@@ -53,11 +53,6 @@ class CCsvLog():
         self.s = ''
         self.nInCurLine = 0
 
-sTitle = 'i, delta00, delta01, delta10, delta11, g00, g01, g10, g11'
-sTitle = sTitle + ', iMaxGrad, fullDelta, tabDelta'
-sTitle = sTitle + ', tab, dev00, dev01, dev10, dev11, score'
-gCsvLog = CCsvLog('Train_tab_value.csv', sTitle)
-
 
 def main():
     Config.OnInitRun()
