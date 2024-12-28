@@ -7,16 +7,19 @@ Group of tab values to teach together
 
 from os import path
 
+import Config
 from TabValue import CTabValue
 from TrainEnv import CTrainEnv
+from CsvLog import CCsvLog
 from Utils import GetAbortFileName
 sfAbort = GetAbortFileName()
 
 
 # Select section to train
+iTube = 0
 iFirstRow = 67 
 iLastRow = 67 
-iFirstDet = 327
+iFirstDet = 307
 iLastDet = 346
 detInc = 4
 detOffset = 170
@@ -25,24 +28,37 @@ setId = 0
 
 firstStepAmplitude = 0.001
 
+verbosity = 1
+
 
 class CTabValues:
     """
     """
-    def __init__(self, iRow, iFirstDet, iLastDet, env):
+    def __init__(self, iTube, iRow, iFirstDet, iLastDet, env):
         """
         """
         global setId
         setId += 1
         self.id = setId
         self.vals = []
-        for iDet in range (iFirstDet, iLastDet, detInc):
+        iAfter = iLastDet+1
+        iLastUsed = iFirstDet
+        sTitle = 'i, '
+        for iDet in range (iFirstDet, iAfter, detInc):
+            iLastUsed = iDet
             iDetInDF = iDet - detOffset
             tabVal = CTabValue(0, env.df.iloc[iDetInDF])
             tabVal.SetDevFromEnv(env)
             self.vals.append(tabVal)
+            sTitle += f'd{iDet}, '
         self.n = len(self.vals)
         self.score = 1000
+
+        self.signature = f'set{self.id}_t{iTube}_r{iRow}_d{iFirstDet}_{iLastUsed}'
+        sfName = f'Train_set_{self.signature}.csv'
+        sTitle += 'all'
+        self.csv = CCsvLog(sfName, sTitle)
+
             
     def ShortPrint(self):
         print(f'<CTabValues> {self.id}: score {self.score:.6f}')
@@ -53,10 +69,13 @@ class CTabValues:
         env.tableGenerator.SaveTable(0) # NOTE: iTube
         env.RunNextTable()
         self.score = 0
+        self.csv.StartNewLine()
         for tv in self.vals:
             tv.ComputeGrad2(env)
             self.score += tv.score
+            self.csv.AddItem(tv.score)
         self.score /= self.n
+        self.csv.AddLastItem(self.score)
         
     def FirstStep(self, env):
         for tv in self.vals:
@@ -102,8 +121,19 @@ class CTabValSets:
         """
         self.env = CTrainEnv()
         self.sets = []
-        tvSet = CTabValues(iFirstRow, iFirstDet, iLastDet, self.env)
-        self.sets.append(tvSet)
+        sTitle = 'i, '
+        for iSet in range(detInc):
+            i1stDet = iFirstDet+iSet
+            tvSet = CTabValues(iTube, iFirstRow, i1stDet, iLastDet, self.env)
+            self.sets.append(tvSet)
+            sTitle += f's{tvSet.id}, '
+            
+        self.n = len(self.sets)
+        self.signature = f'metaset_t{iTube}_r{iFirstRow}_d{iFirstDet}_{iLastDet}'
+        sfName = f'Train_{self.signature}.csv'
+        sTitle += 'all'
+        self.csv = CCsvLog(sfName, sTitle)
+        self.count = 0
         
     def ShortPrint(self):
         for s in self.sets:
@@ -112,14 +142,30 @@ class CTabValSets:
     def FirstStep(self):
         for s in self.sets:
             s.FirstStep(self.env)
-            s.ShortPrint()
+            if verbosity > 2:
+                s.ShortPrint()
             s.RetraceBadSteps(self.env)
-            s.ShortPrint()
+            if verbosity > 2:
+                s.ShortPrint()
             
     def Train1(self):
+        self.count += 1
+        self.csv.StartNewLine()
+        self.score = 0
         for s in self.sets:
             s.NextStep(self.env)
-            s.ShortPrint()
+            if verbosity > 2:
+                s.ShortPrint()
+            self.score += s.score
+            self.csv.AddItem(s.score)
+            
+        self.score /= self.n
+        self.csv.AddLastItem(self.score)
+        print(f'<CTabValSets::Train> {self.count}: {self.score:.6f}')
+        
+        if self.count == 1 or self.count % 10 == 0:
+            self.env.SaveDevMap(f'step{self.count}')
+            Config.SaveLastBpOutput(self.count, zAt = 'Multiset_Training')
             
     def Train(self, n):
         for i in range(n):

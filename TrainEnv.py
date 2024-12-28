@@ -62,7 +62,6 @@ class CTrainEnv:
         print('*** <RunInitialTable>')
         RunAiRecon('InitialTable')
         self.scorer.OldScore(Config.sfVolumeAi, self.sample, bSikpFirst=True)
-        #scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, sample, bSingle=True)
         self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample)
           
         self.initialDevMap = self.scorer.devRaster.dev.clone()
@@ -78,22 +77,11 @@ class CTrainEnv:
             
         self.devMap = self.scorer.devRaster.dev.clone()
 
+    def SaveDevMap(self, zAt):
+        sfName = f'DevMap_{zAt}'
+        Config.WriteDevToFile(self.devMap, sfName)
     
-    """
-    def RunSecondTableValues(tabValues, scorer, sample, tableGenerator):
-        print('*** <RunSecondTable>')
-        for tv in tabValues:
-            tv.LogNoGrad()
-            tv.AdjustTableLocally(tableGenerator, firstStepAmplitude)
-        tableGenerator.SaveTable(0) # NOTE: iTube
-                
-        RunAiRecon('SecondTable')
-        scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, sample)
-            
-        secondDevMap = scorer.devRaster.dev.clone()
-        return secondDevMap
-    """
-
+        
     
 def main():
     print('*** Test training environment')

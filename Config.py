@@ -32,8 +32,8 @@ debug = 3
 
 sfRoot = 'd:/PolyCalib'
 iExperiment = 37
-sExp = '1point'
-sExp = 'try'
+sExp = 'multisets'
+#sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
@@ -61,9 +61,12 @@ def SetBPOutputFileName(sPrefix):
     sfBPOutput = path.join(sVolDir, s)
     return sfBPOutput
 
-def SaveLastBpOutput(i):
+def SaveLastBpOutput(i, zAt = None):
     if path.isfile(sfBPOutput):
-        sNewExt = f'_save{i}.float.rvol'
+        sNewExt = f'_save{i}'
+        if zAt is not None:
+            sNewExt += f'_{zAt}'
+        sNewExt += '.float.rvol'
         sfNew = sfBPOutput.replace('.float.rvol', sNewExt)
         shutil.copyfile(sfBPOutput, sfNew)
         print(f'Last BP output was saved as {sfNew}')

@@ -274,7 +274,6 @@ def RunInitialTable(scorer, sample, tableGenerator):
     print('*** <RunInitialTable>')
     RunAiRecon('InitialTable')
     scorer.OldScore(Config.sfVolumeAi, sample, bSikpFirst=True)
-    #scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, sample, bSingle=True)
     scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, sample)
       
     initialDevMap = scorer.devRaster.dev.clone()
