@@ -31,8 +31,8 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 37
-sExp = 'multisets'
+iExperiment = 38
+sExp = 'multisets4lines'
 #sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''

@@ -18,11 +18,12 @@ sfAbort = GetAbortFileName()
 # Select section to train
 iTube = 0
 iFirstRow = 67 
-iLastRow = 67 
-iFirstDet = 307
+iLastRow = 70 
+iFirstDet = 227
 iLastDet = 346
 detInc = 4
 detOffset = 170
+rowOffset = 177
 
 setId = 0
 
@@ -47,6 +48,7 @@ class CTabValues:
         for iDet in range (iFirstDet, iAfter, detInc):
             iLastUsed = iDet
             iDetInDF = iDet - detOffset
+            iDetInDF += (iRow - iFirstRow) * rowOffset
             tabVal = CTabValue(0, env.df.iloc[iDetInDF])
             tabVal.SetDevFromEnv(env)
             self.vals.append(tabVal)
@@ -122,18 +124,22 @@ class CTabValSets:
         self.env = CTrainEnv()
         self.sets = []
         sTitle = 'i, '
-        for iSet in range(detInc):
-            i1stDet = iFirstDet+iSet
-            tvSet = CTabValues(iTube, iFirstRow, i1stDet, iLastDet, self.env)
-            self.sets.append(tvSet)
-            sTitle += f's{tvSet.id}, '
+        nRows = iLastRow - iFirstRow + 1
+        for ir in range(nRows):
+            iRow = iFirstRow + ir
+            for iSet in range(detInc):
+                i1stDet = iFirstDet+iSet
+                tvSet = CTabValues(iTube, iRow, i1stDet, iLastDet, self.env)
+                self.sets.append(tvSet)
+                sTitle += f's{tvSet.id}, '
             
         self.n = len(self.sets)
-        self.signature = f'metaset_t{iTube}_r{iFirstRow}_d{iFirstDet}_{iLastDet}'
+        self.signature = f'metaset_t{iTube}_r{iFirstRow}_{iLastRow}_d{iFirstDet}_{iLastDet}'
         sfName = f'Train_{self.signature}.csv'
         sTitle += 'all'
         self.csv = CCsvLog(sfName, sTitle)
         self.count = 0
+        self.iSaved = -1
         
     def ShortPrint(self):
         for s in self.sets:
@@ -147,31 +153,43 @@ class CTabValSets:
             s.RetraceBadSteps(self.env)
             if verbosity > 2:
                 s.ShortPrint()
+
+    def SaveResults(self):
+        if self.iSaved == self.count:
+            return
+        self.env.SaveDevMap(f'step{self.count}')
+        Config.SaveLastBpOutput(self.count, zAt = 'Multiset_Training')
+        self.iSaved = self.count
             
     def Train1(self):
         self.count += 1
         self.csv.StartNewLine()
         self.score = 0
+        n = 0
         for s in self.sets:
             s.NextStep(self.env)
             if verbosity > 2:
                 s.ShortPrint()
             self.score += s.score
+            n += 1
             self.csv.AddItem(s.score)
             
-        self.score /= self.n
+            if path.exists(sfAbort):
+                break
+            
+        self.score /= n
         self.csv.AddLastItem(self.score)
         print(f'<CTabValSets::Train> {self.count}: {self.score:.6f}')
         
         if self.count == 1 or self.count % 10 == 0:
-            self.env.SaveDevMap(f'step{self.count}')
-            Config.SaveLastBpOutput(self.count, zAt = 'Multiset_Training')
+            self.SaveResults()
             
     def Train(self, n):
         for i in range(n):
             self.Train1()
         
             if path.exists(sfAbort):
+                self.SaveResults()
                 print('Aborting...')
                 break   
         
