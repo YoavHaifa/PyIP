@@ -5,14 +5,18 @@ Group of tab values to teach together
 @author: yoavb
 """
 
+from os import path
+
 from TabValue import CTabValue
 from TrainEnv import CTrainEnv
+from Utils import GetAbortFileName
+sfAbort = GetAbortFileName()
 
 
 # Select section to train
 iFirstRow = 67 
 iLastRow = 67 
-iFirstDet = 335
+iFirstDet = 327
 iLastDet = 346
 detInc = 4
 detOffset = 170
@@ -37,31 +41,40 @@ class CTabValues:
             tabVal = CTabValue(0, env.df.iloc[iDetInDF])
             tabVal.SetDevFromEnv(env)
             self.vals.append(tabVal)
+        self.n = len(self.vals)
+        self.score = 1000
             
     def ShortPrint(self):
-        print(f'<CTabValues> {self.id}:')
+        print(f'<CTabValues> {self.id}: score {self.score:.6f}')
         for tv in self.vals:
             tv.ShortPrint()
-            
+    
+    def Run(self, env):
+        env.tableGenerator.SaveTable(0) # NOTE: iTube
+        env.RunNextTable()
+        self.score = 0
+        for tv in self.vals:
+            tv.ComputeGrad2(env)
+            self.score += tv.score
+        self.score /= self.n
+        
     def FirstStep(self, env):
         for tv in self.vals:
             tv.AdjustTableLocally(env.tableGenerator, firstStepAmplitude)
-        env.tableGenerator.SaveTable(0) # NOTE: iTube
-        env.RunNextTable()
-        for tv in self.vals:
-            tv.ComputeGrad2(env)
+        self.Run(env)
         
-    def RetraceBadSteps(self):
+    def RetraceBadSteps(self, env):
+        nChanged = 0
         for tv in self.vals:
-            tv.SelectLastOrPrev()
+            if tv.SelectLastOrPrev(env.tableGenerator):
+                nChanged += 1
+        if nChanged > 0:
+            self.Run(env)
             
     def NextStep(self, env):
         for tv in self.vals:
             tv.SetNextStep(env.tableGenerator)
-        env.tableGenerator.SaveTable(0) # NOTE: iTube
-        env.RunNextTable()
-        for tv in self.vals:
-            tv.ComputeGrad2(env)
+        self.Run(env)
         
         
         
@@ -100,7 +113,7 @@ class CTabValSets:
         for s in self.sets:
             s.FirstStep(self.env)
             s.ShortPrint()
-            s.RetraceBadSteps()
+            s.RetraceBadSteps(self.env)
             s.ShortPrint()
             
     def Train1(self):
@@ -112,6 +125,10 @@ class CTabValSets:
         for i in range(n):
             self.Train1()
         
+            if path.exists(sfAbort):
+                print('Aborting...')
+                break   
+        
     
 def main():
     print('*** Test training of tab groupss')
@@ -119,7 +136,7 @@ def main():
     print(sets)
     sets.ShortPrint()
     sets.FirstStep()
-    sets.Train(2)
+    sets.Train(100)
     
     
     

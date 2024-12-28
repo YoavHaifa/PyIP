@@ -67,6 +67,8 @@ class CTabValue:
         self.nBad = 0
         self.count = -1
         self.tabValue = 1
+        self.bSkippedStep = False
+        self.bStepSelected = False
         
     def SetDevFromEnv(self, env):
         self.count += 1
@@ -79,12 +81,18 @@ class CTabValue:
             self.csv.AddItem(d.item())
         self.csv.AddLastItem(self.score)
        
-    def SelectLastOrPrev(self):
-        if self.score > self.prevScore:
-            self.prevDev, self.dev = self.dev, self.prevDev
-            self.prevTabValue, self.tabValue = self.tabValue, self.prevTabValue
-            self.prevScore, self.score = self.score, self.prevScore
-            self.ComputeGradFinal()
+    def SelectLastOrPrev(self, tabGen):
+        if self.score <= self.prevScore:
+            self.bSkippedStep = True
+            return False
+        
+        self.bSkippedStep = False
+        self.prevDev, self.dev = self.dev, self.prevDev
+        self.prevTabValue, self.tabValue = self.tabValue, self.prevTabValue
+        self.prevScore, self.score = self.score, self.prevScore
+        self.ComputeGradFinal()
+        tabGen.SetValueLocally(self.iTube, self.iRow, self.iDet, self.tabValue)
+        return True
        
     def SetDev(self, devMap):
         self.count += 1
@@ -114,6 +122,9 @@ class CTabValue:
         self.SetDev(devMap)
         
     def ComputeGradFinal(self):
+        if self.bSkippedStep:
+            return
+        
         self.deltaTable = self.tabValue - self.prevTabValue
         self.deltaDev = self.dev - self.prevDev
         if self.deltaTable != 0:
@@ -146,9 +157,13 @@ class CTabValue:
             for g in self.grad.view(4):
                 self.csv.AddItem(g.item())
         
-            self.csv.AddItem(self.iMaxGrad)
-            self.csv.AddItem(self.fullDelta)
-            self.csv.AddItem(self.delta)
+            if self.bStepSelected:
+                self.csv.AddItem(self.iMaxGrad)
+                self.csv.AddItem(self.fullDelta)
+                self.csv.AddItem(self.delta)
+            else:
+                for i in range(3): # delta and grad
+                    self.csv.AddItem(0)
             
         self.csv.AddItem(self.tabValue*1000)
         
@@ -168,14 +183,26 @@ class CTabValue:
 
     def SetNextStep(self, tabGen):
         flatGrad = self.grad.view(4)
+        sumPos = flatGrad[flatGrad>0].sum().item()
+        sumNeg = abs(flatGrad[flatGrad<0].sum().item())
+        if sumPos > sumNeg:
+            self.iMaxGrad = flatGrad.argmax()
+        else:
+            self.iMaxGrad = flatGrad.argmin()
+
         flatDev = self.dev.view(4)
-        absGrad = flatGrad.abs()
-        self.iMaxGrad = absGrad.argmax()
         maxGrad = flatGrad[self.iMaxGrad]
         maxGradDev = flatDev[self.iMaxGrad]
-        self.fullDelta = - maxGradDev / maxGrad;
-        self.delta = self.fullDelta * LRFraction
-        self.AdjustTableLocally(tabGen, self.delta)
+        if abs(maxGradDev) <= 1:
+            self.bSkippedStep = True
+            self.fullDelta = 0
+            self.delta = 0 
+        else:
+            self.bSkippedStep = False
+            self.fullDelta = - maxGradDev / maxGrad;
+            self.delta = self.fullDelta * LRFraction
+            self.AdjustTableLocally(tabGen, self.delta)
+        self.bStepSelected = True
 
     def Step(self, tabGen):
         if abs(self.prevScore) < abs(self.score):
@@ -220,12 +247,16 @@ class CTabValue:
         if self.grad is not None:
             print(f'{self.grad=}')
         
-    def ShortPrint(self):
+    def ShortPrint(self, sAt = None):
         dev = self.dev
         if dev is None:
             dev = torch.zeros([2,2])
         val1000 = self.tabValue * 1000
-        print(f'<TV_{self.signature}-{self.count}> {val1000:.3f} -> {dev[0,0]:.3f}, {dev[0,1]:.3f}, {dev[1,0]:.3f}, {dev[1,1]:.3f}, score {self.score:.6f}')
+        s = f'<TV_{self.signature}-{self.count}>'
+        if sAt is not None:
+            s += f' at {sAt}'
+        s += f' {val1000:.3f} -> {dev[0,0]:.3f}, {dev[0,1]:.3f}, {dev[1,0]:.3f}, {dev[1,1]:.3f}, score {self.score:.6f}'
+        print(s)
 
 def ReadData(sfName):
     print('<ReadData>', sfName)
