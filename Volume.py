@@ -39,38 +39,48 @@ class CVolume():
     nLines and nCols include Padded lines and columns
     Internally data is always held as 32-bit float
     """
-    def __init__(self, name, fileName):
+    def __init__(self, name, sfName):
         """
         Args:
             fileName: name of file to read - values may be short or float nImages
         """
-        if not path.exists(fileName):
-            fileName = path.join(Config.sVolDir, fileName)
-            if not path.exists(fileName):
-                print(f'<CVolume::__init__> {name} MISSING file: {fileName}')
+        if path.exists(sfName):
+            sfFullName = sfName
+        else:
+            sfFullName = path.join(Config.sVolDir, sfName)
+            if not path.exists(sfFullName):
+                print(f'{Config.sRootVolDir=}')
+                print(f'{sfName=}')
+                sfTry = path.join(Config.sRootVolDir, sfName)
+                print(f'{sfTry=}')
+                if path.exists(sfTry):
+                    sfFullName = sfTry
+                
+            if not path.exists(sfFullName):
+                print(f'<CVolume::__init__> {name} MISSING file: {sfFullName}')
                 sys.exit()
         if verbosity > 1:
-            print(f'<CVolume::__init__> {name} file: {fileName}')
+            print(f'<CVolume::__init__> {name} file: {sfFullName}')
             
         self.name = name;
-        self.fName = fileName
-        self.fPrivateName = FPrivateName(fileName)
-        mat = GetValue2(fileName, '_mat', '_matrix')
+        self.fName = sfFullName
+        self.fPrivateName = FPrivateName(sfFullName)
+        mat = GetValue2(sfFullName, '_mat', '_matrix')
         if mat > 0:    
             self.nLines = mat
             self.nCols = mat
         else:
             self.nLines = defaultMatrix
             self.nCols = defaultMatrix
-            nCols1 =  GetValue(fileName, '_width')
+            nCols1 =  GetValue(sfFullName, '_width')
             if nCols1 > 0:
                 self.nCols = nCols1
-            nLines1 =  GetValue(fileName, '_height')
+            nLines1 =  GetValue(sfFullName, '_height')
             if nLines1 > 0:
                 self.nLines = nLines1
         
-        self.nhPad = GetValue(fileName, '_hPad')
-        self.nvPad = GetValue(fileName, '_vPad')
+        self.nhPad = GetValue(sfFullName, '_hPad')
+        self.nvPad = GetValue(sfFullName, '_vPad')
         self.ReadImages()
         self.i = 0
 

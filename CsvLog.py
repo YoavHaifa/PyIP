@@ -20,9 +20,14 @@ class CCsvLog():
         self.nInCurLine = 0
         self.sfName = Config.LogFileName(sfName)
         self.nWarnings = 0
+        self.nExternalWarnings = 0
+        self.sExternalWarning = ''
         
         with open(self.sfName, 'w') as f:
             f.write(f'{sTitle}\n')
+
+    def SetExternalWarning(self, s):
+        self.sExternalWarning = s
 
     def StartNewLine(self):
         self.count += 1
@@ -46,6 +51,10 @@ class CCsvLog():
             if self.nWarnings < 3:
                 print(f'<CCsvLog::AddLastItem> WARNING {self.nWarnings}: n {self.nInCurLine} != {self.nElements} expected')
                 print(f'<CCsvLog::AddLastItem> WARNING {self.nWarnings}: last line is {self.s}')
+
+        if self.sExternalWarning != '':
+            self.AddItem(self.sExternalWarning)
+            self.sExternalWarning = ''
         
         with open(self.sfName, 'a') as f:
             f.write(f'{self.s}\n')

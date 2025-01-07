@@ -53,10 +53,13 @@ def RunOriginalRecon(sWhy = None):
     RunRecon(sWhy)
 
 def RunAiRecon(sWhy, bDefaultOutput = True):
+    Start('RunAiRecon')
     Config.SetPolyByAi(bDefaultOutput)
     RunRecon(sWhy)
+    End('RunAiRecon')
     
 def VeifyReconRunning(bOnEnd = False):
+    Start('VeifyReconRunning')
     bRunning = "AppRunner.exe" in (p.name() for p in psutil.process_iter())
     if not bRunning:
         if bOnEnd:
@@ -64,6 +67,7 @@ def VeifyReconRunning(bOnEnd = False):
         else:   
             print('AppRunner is not running!')
         sys.exit()
+    End('VeifyReconRunning')
 
 def main():
     n = 1

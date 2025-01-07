@@ -10,7 +10,7 @@ from os import path
 import sys
 import shutil
 
-from Utils import VerifyJointDir, VerifyDir, VerifyDirIsNew, DeleteFilesInDir
+from Utils import VerifyJointDir, VerifyDir, VerifyDirIsNew, DeleteFilesInDir, FPrivateName
 
 sAiFlag = 'd:/Config/Poly/GetAiTable.txt'
 sAiFlagRemoved = 'd:/Config/Poly/GetAiTable_x.txt'
@@ -31,13 +31,14 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 38
-sExp = 'multisets4lines'
+iExperiment = 43
+sExp = 'multisets8lines_wide'
 #sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
 sVolDir = ''
+sRootVolDir = ''
 sDevDir = ''
 #sTabDir0 = ''
 #sTabDir1 = ''
@@ -63,7 +64,7 @@ def SetBPOutputFileName(sPrefix):
 
 def SaveLastBpOutput(i, zAt = None):
     if path.isfile(sfBPOutput):
-        sNewExt = f'_save{i}'
+        sNewExt = f'_save{i:02d}'
         if zAt is not None:
             sNewExt += f'_{zAt}'
         sNewExt += '.float.rvol'
@@ -89,7 +90,7 @@ def SetSpecialVolDir(sSpecialVolDir):
         sys.exit()
 
 def OnInitRun():
-    global sBaseDir, sLogDir, sVolDir, sDevDir
+    global sBaseDir, sLogDir, sVolDir, sDevDir, sRootVolDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
     global sBestTabsDir, nToEvaluate
     
@@ -118,6 +119,11 @@ def OnInitRun():
     
     if sExp == 'try':
         nToEvaluate = nToEvaluateTry
+        
+    if sRootVolDir == '':
+        print(f'{sfRoot=}')
+        sRootVolDir = VerifyJointDir(sfRoot, 'Vol')
+        print(f'{sRootVolDir=}')
 
     
 def LogFileName(sfName):
@@ -201,6 +207,38 @@ def WriteDevToFile(devMap, sfName, sfType='float'):
     with open (sfFullName, 'wb') as file:
         file.write(npmat.tobytes())
     print('Dev map saved:', sfFullName)
+
+def WriteVolToFile(vol, sfName, sfType='float'):
+    nCols = vol.shape[-1]
+    nLines = vol.shape[-2]
+    sfName += f'_width{nCols}_height{nLines}'
+    if nCols <= 250 and nLines <= 250:
+        sfName += '_zoom2'
+    sfName += f'.{sfType}.rvol'
+    sfFullName = path.join(sVolDir, sfName)
+    
+    npvol = vol.numpy()
+    with open (sfFullName, 'wb') as file:
+        file.write(npvol.tobytes())
+    print('Volume saved:', sfFullName)
+
+def GetLocalOrSharedVol(sfVol):
+    if path.exists(sfVol):
+        return sfVol
+    
+    sfVol = FPrivateName(sfVol)
+
+    sfFullName = path.join(sVolDir, sfVol)
+    if path.exists(sfFullName):
+        return sfFullName
+    
+    sfTry = path.join(sRootVolDir, sfVol)
+    if path.exists(sfTry):
+        return sfTry
+        
+    print(f'<Config::GetLocalOrSharedVol> MISSING file: {sfFullName}')
+    sys.exit()
+    
     
 def main():
     OnInitRun()

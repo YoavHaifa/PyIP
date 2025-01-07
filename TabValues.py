@@ -5,6 +5,7 @@ Group of tab values to teach together
 @author: yoavb
 """
 
+import sys
 from os import path
 
 import Config
@@ -12,18 +13,20 @@ from TabValue import CTabValue
 from TrainEnv import CTrainEnv
 from CsvLog import CCsvLog
 from Utils import GetAbortFileName
+from Log import Start, End
+
 sfAbort = GetAbortFileName()
 
 
 # Select section to train
 iTube = 0
 iFirstRow = 67 
-iLastRow = 70 
-iFirstDet = 227
-iLastDet = 346
+iLastRow = 74
+iFirstDet = 171
+iLastDet = 386
 detInc = 4
 detOffset = 170
-rowOffset = 177
+rowOffset = 217
 
 setId = 0
 
@@ -68,16 +71,19 @@ class CTabValues:
             tv.ShortPrint()
     
     def Run(self, env):
+        print('.', end='')
         env.tableGenerator.SaveTable(0) # NOTE: iTube
         env.RunNextTable()
+        Start('Compute_grad4set')
         self.score = 0
         self.csv.StartNewLine()
         for tv in self.vals:
-            tv.ComputeGrad2(env)
+            tv.ComputeGradFromEnv(env)
             self.score += tv.score
             self.csv.AddItem(tv.score)
         self.score /= self.n
         self.csv.AddLastItem(self.score)
+        End('Compute_grad4set')
         
     def FirstStep(self, env):
         for tv in self.vals:
@@ -140,6 +146,9 @@ class CTabValSets:
         self.csv = CCsvLog(sfName, sTitle)
         self.count = 0
         self.iSaved = -1
+        self.score = 1000
+        self.nBetter = 0
+        self.nNotBetter = 0
         
     def ShortPrint(self):
         for s in self.sets:
@@ -157,13 +166,16 @@ class CTabValSets:
     def SaveResults(self):
         if self.iSaved == self.count:
             return
-        self.env.SaveDevMap(f'step{self.count}')
+        self.env.SaveDevMap(f'step{self.count:02d}')
         Config.SaveLastBpOutput(self.count, zAt = 'Multiset_Training')
         self.iSaved = self.count
             
-    def Train1(self):
+    def TrainSetsOnce(self):
+        Start('TrainSetsOnce')
         self.count += 1
         self.csv.StartNewLine()
+        self.prevScore = self.score
+        self.env.KeepLastResultsForFutureSave(f'score{self.score:.6f}')
         self.score = 0
         n = 0
         for s in self.sets:
@@ -181,12 +193,30 @@ class CTabValSets:
         self.csv.AddLastItem(self.score)
         print(f'<CTabValSets::Train> {self.count}: {self.score:.6f}')
         
-        if self.count == 1 or self.count % 10 == 0:
+        if self.count % 10 == 0:
             self.SaveResults()
             
+        if self.score < self.prevScore:
+            self.nBetter += 1 
+            self.nNotBetter = 0
+        else:
+            if self.nNotBetter == 0:
+                self.env.SaveKeptResults()
+            self.nNotBetter += 1
+            
+        End('TrainSetsOnce')
+            
     def Train(self, n):
+
+        # Save results before real training
+        self.SaveResults()
+
         for i in range(n):
-            self.Train1()
+            self.TrainSetsOnce()
+            
+            if self.nNotBetter >= 5:
+                print('Stopped converging...')
+                break
         
             if path.exists(sfAbort):
                 self.SaveResults()
@@ -200,7 +230,7 @@ def main():
     print(sets)
     sets.ShortPrint()
     sets.FirstStep()
-    sets.Train(100)
+    sets.Train(50)
     
     
     

@@ -22,6 +22,7 @@ from MaskVolume import CMaskVolume
 from Volume import CVolume
 from CsvLog import CCsvLog
 from Utils import GetAbortFileName
+from Log import Log
 
 
 sIRDir = 'D:/PolyCalib/Impulse/Impulse_r67_1_70_c170_1_346'
@@ -29,7 +30,7 @@ sfIR = 'Tube0_IR_grid_r67_d170.csv'
 sfAbort = GetAbortFileName()
 
 firstStepAmplitude = 0.001
-LRFraction = 0.04
+LRFraction = 0.08
 
 
 sTitle = 'i, delta00, delta01, delta10, delta11, g00, g01, g10, g11'
@@ -53,7 +54,7 @@ class CTabValue:
         self.iIm = int(csvIRLine[' im'].item())
         self.iRad = int(csvIRLine[' rad'].item())
         
-        self.signature = f't{iTube}_r{self.iRow}_d{self.iDet}'
+        self.signature = f't{iTube}_r{self.iRow}_d{self.iDet}_im{self.iIm}_rad{self.iRad}'
         sfName = f'Train_tab_value_{self.signature}.csv'
         self.csv = CCsvLog(sfName, sTitle)
         
@@ -69,6 +70,8 @@ class CTabValue:
         self.tabValue = 1
         self.bSkippedStep = False
         self.bStepSelected = False
+        self.nReuseGrad = 0
+        self.nReuseGradReported = 0
         
     def SetDevFromEnv(self, env):
         self.count += 1
@@ -90,7 +93,7 @@ class CTabValue:
         self.prevDev, self.dev = self.dev, self.prevDev
         self.prevTabValue, self.tabValue = self.tabValue, self.prevTabValue
         self.prevScore, self.score = self.score, self.prevScore
-        self.ComputeGradFinal()
+        self.ComputeGrad()
         tabGen.SetValueLocally(self.iTube, self.iRow, self.iDet, self.tabValue)
         return True
        
@@ -115,13 +118,18 @@ class CTabValue:
                 sys.exit()
 
     def SetInitialDev(self, devMap):
-        self.LogNoGrad(tabPos = 1.0)
+        self.LogNoGrad()
 
         self.prevTabValue = 1.0
         self.dev = devMap[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
         self.SetDev(devMap)
         
-    def ComputeGradFinal(self):
+    def ComputeGradFromEnv(self, env):
+        self.SetDevFromEnv(env)
+        self.prevDev = env.prevDev[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
+        self.ComputeGrad()
+        
+    def ComputeGrad(self):
         if self.bSkippedStep:
             return
         
@@ -129,23 +137,15 @@ class CTabValue:
         self.deltaDev = self.dev - self.prevDev
         if self.deltaTable != 0:
             self.grad = self.deltaDev / self.deltaTable
+            self.nReuseGrad = 0
         else:
-            print('<ComputeGrad2> WARNING: deltaTable was 0!')
-            self.grad = torch.ones([2,2])
-        
-    def ComputeGrad2(self, env):
-        self.SetDevFromEnv(env)
-        self.prevDev = env.prevDev[self.iIm:self.iIm+2, self.iRad:self.iRad+2].clone()
-        self.ComputeGradFinal()
-        
-    def ComputeGrad(self):
-        self.deltaTable = self.tabValue - self.prevTabValue
-        self.deltaDev = self.dev - self.prevDev
-        if self.deltaTable != 0:
-            self.grad = self.deltaDev / self.deltaTable
-        else:
-            print('<ComputeGrad> WARNING: deltaTable was 0!')
-            self.grad = torch.ones([2,2])
+            self.nReuseGrad += 1
+            if self.nReuseGradReported == 0:
+                self.nReuseGradReported += 1
+                sWarn = f'<ComputeGrad> WARNING: deltaTable was 0! - reuse {self.nReuseGrad}'
+                self.csv.SetExternalWarning(sWarn)
+                Log(sWarn)
+                Log(f'For more details see: {self.csv.sfName}')
         
     def LogGrad(self, tabPos = None):
         self.csv.StartNewLine()
@@ -155,7 +155,10 @@ class CTabValue:
             for delta in self.deltaDev.view(4):
                 self.csv.AddItem(delta.item())
             for g in self.grad.view(4):
-                self.csv.AddItem(g.item())
+                if self.nReuseGrad == 0:
+                    self.csv.AddItem(g.item())
+                else:
+                    self.csv.AddItem('--')
         
             if self.bStepSelected:
                 self.csv.AddItem(self.iMaxGrad)

@@ -18,7 +18,7 @@ from RadiusImage import CRadiusImage
 from MaskVolume import CMaskVolume
 from Volume import CVolume
 
-sIRDir = 'D:/PolyCalib/Impulse/Impulse_r67_1_70_c170_1_346'
+sIRDir = 'D:/PolyCalib/Impulse/Impulse_r67_1_74_c170_1_386'
 sfIR = 'Tube0_IR_grid_r67_d170.csv'
 
 verbosity = 1
@@ -38,13 +38,16 @@ class CTrainEnv:
         
         self.scorer = CPolyScorer()
         radIm = CRadiusImage()
-        originalVol = CVolume('nominalVol', Config.sfVolumeNominal)
+        sfVol = Config.GetLocalOrSharedVol(Config.sfVolumeNominal)
+        originalVol = CVolume('nominalVol', sfVol)
         maskVol = CMaskVolume(originalVol)
         self.sample = CSample(maskVol, radIm)
         self.tableGenerator = CPolyTables() # Prepares initial table
             
         self.RunInitialTable()
         Config.WriteDevToFile(self.initialDevMap, 'flatTab_initial')
+        
+        self.keptDevMap = None
 
     def ReadData(self):
         sfName = path.join(sIRDir, sfIR)
@@ -77,11 +80,24 @@ class CTrainEnv:
             
         self.devMap = self.scorer.devRaster.dev.clone()
 
-    def SaveDevMap(self, zAt):
-        sfName = f'DevMap_{zAt}'
+    def SaveDevMap(self, sAt):
+        sfName = f'DevMap_{sAt}'
         Config.WriteDevToFile(self.devMap, sfName)
-    
         
+    def KeepLastResultsForFutureSave(self, sAt):
+        self.sKeptAt = sAt
+        self.keptDevMap = self.devMap.clone()
+        self.keptVolume = self.scorer.vol.pImages.clone()
+
+    def SaveKeptResults(self):
+        if self.keptDevMap is None:
+            return
+        
+        sfName = f'DevMapKept_{self.sKeptAt}'
+        Config.WriteDevToFile(self.keptDevMap, sfName)
+        
+        sfName = f'VolumeKept_{self.sKeptAt}'
+        Config.WriteVolToFile(self.keptVolume, sfName)
     
 def main():
     print('*** Test training environment')

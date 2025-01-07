@@ -68,7 +68,10 @@ class CLog:
         start = self.times[-1]
         elapsed = time.monotonic() - start
     
-        self.Log(f'End {sSection} {sComment} - Elapsed {elapsed:.3f} seconds')
+        sEnd = f'End {sSection}'
+        if sComment != ' {sComment}':
+            sEnd += f' {sComment}'
+        self.Log(f'{sEnd} - Elapsed {elapsed:.3f} seconds')
         if len(self.blanks) > 1:
             self.blanks = self.blanks[0:-2]
         self.sections.pop()

@@ -39,11 +39,11 @@ elif bBand:
     #rows
     iFirstRow = 67
     iDeltaRow = 1
-    iLastRow = 70
+    iLastRow = 74
     #dets
     iFirstDet = 170
     iDeltaDet = 1
-    iLastDet = 346
+    iLastDet = 386
     #debug
     verbosity = 15
 else:

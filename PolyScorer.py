@@ -168,8 +168,11 @@ class CPolyScorer:
         self.averageScore = relevanDelatAvg.mean()
         
     def ComputeNewScoreOfVolume12(self, sfVolume, sample, bSingle = False):
+        Start('ComputeScore')
         self.ComputeNewScoreOfVolume1(sfVolume, sample)
-        return self.ComputeNewScoreOfVolume2(bSingle)
+        self.ComputeNewScoreOfVolume2(bSingle)
+        End('ComputeScore')
+        return self.newScore
         
     def ComputeNewScoreOfVolume1(self, sfVolume, sample):
         if not self.bTargetDefined:
@@ -181,12 +184,12 @@ class CPolyScorer:
         if verbosity > 1:
             print('<CPolyScorer::ComputeNewScoreOfVolume> ', sfVolume)
         Log(f'<CPolyScorer::ComputeNewScoreOfVolume> {sfVolume}')
-        vol = CVolume('scoredVol', sfVolume)
+        self.vol = CVolume('scoredVol', sfVolume)
         self.radIm = sample.radIm
         
         self.nImages = sample.nImages
         self.nRadiusesPerImage = sample.nRadiusesPerImage
-        self.ScoreAllImages(vol, sample)
+        self.ScoreAllImages(self.vol, sample)
         End('ComputeNewScoreOfVolume1')
         
     def ComputeNewScoreOfVolume2(self, bSingle = False):
@@ -220,7 +223,6 @@ class CPolyScorer:
         if verbosity > 1:
             print(f'<CPolyScorer::ComputeNewScoreOfVolume> {self.count} Score {self.newScore}')
         End('ComputeNewScoreOfVolume')
-        return self.newScore
         
     def OldScore(self, sfVolume, sample, bSikpFirst=False):
         print('*** <OldScore>')
