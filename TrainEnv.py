@@ -17,6 +17,7 @@ from Sample import CSample
 from RadiusImage import CRadiusImage
 from MaskVolume import CMaskVolume
 from Volume import CVolume
+from TargetCsv import CTargetCSVs
 
 sIRDir = 'D:/PolyCalib/Impulse/Impulse_r67_1_74_c170_1_386'
 sfIR = 'Tube0_IR_grid_r67_d170.csv'
@@ -30,6 +31,7 @@ class CTrainEnv:
         """
         """
 
+        print('<CTrainEnv::__init__>')
         VeifyReconRunning()
         Config.OnInitRun()
         
@@ -65,6 +67,7 @@ class CTrainEnv:
         print('*** <RunInitialTable>')
         RunAiRecon('InitialTable')
         self.scorer.OldScore(Config.sfVolumeAi, self.sample, bSikpFirst=True)
+        self.targetCsvs = CTargetCSVs(self.scorer.targetAverage)
         self.scorer.ComputeNewScoreOfVolume12(Config.sfVolumeAi, self.sample)
           
         self.initialDevMap = self.scorer.devRaster.dev.clone()
@@ -83,6 +86,14 @@ class CTrainEnv:
     def SaveDevMap(self, sAt):
         sfName = f'DevMap_{sAt}'
         Config.WriteDevToFile(self.devMap, sfName)
+
+    def SaveVolume(self, sAt):
+        sfName = f'Volume_{sAt}'
+        Config.WriteVolToFile(self.scorer.vol.pImages, sfName)
+        
+    def SaveVolumeAndDevMap(self, sAt):
+        self.SaveDevMap(sAt)
+        self.SaveVolume(sAt)
         
     def KeepLastResultsForFutureSave(self, sAt):
         self.sKeptAt = sAt

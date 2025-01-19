@@ -21,6 +21,7 @@ sfAbort = GetAbortFileName()
 # Select section to train
 iTube = 0
 iFirstRow = 67 
+#iLastRow = 67
 iLastRow = 74
 iFirstDet = 171
 iLastDet = 386
@@ -60,9 +61,9 @@ class CTabValues:
         self.score = 1000
 
         self.signature = f'set{self.id}_t{iTube}_r{iRow}_d{iFirstDet}_{iLastUsed}'
-        sfName = f'Train_set_{self.signature}.csv'
+        sfName = f'Train_{self.signature}.csv'
         sTitle += 'all'
-        self.csv = CCsvLog(sfName, sTitle)
+        self.csv = CCsvLog(sfName, sTitle, sSubDir='Set')
 
             
     def ShortPrint(self):
@@ -103,7 +104,16 @@ class CTabValues:
             tv.SetNextStep(env.tableGenerator)
         self.Run(env)
         
-        
+    def SelectTV(self, iImage, iRad):
+        bestDist = 1000
+        for i, tv in enumerate(self.vals):
+            dist = tv.Dist2(iImage, iRad)
+            if i == 0 or dist < bestDist:
+                bestDist = dist
+                bestTv = tv
+        return bestTv
+            
+         
         
 """
 def RunSecondTableValues(tabValues, scorer, sample, tableGenerator):
@@ -162,6 +172,8 @@ class CTabValSets:
             s.RetraceBadSteps(self.env)
             if verbosity > 2:
                 s.ShortPrint()
+                
+            self.env.targetCsvs.Trace(self.env.devMap, s)
 
     def SaveResults(self):
         if self.iSaved == self.count:
@@ -188,6 +200,8 @@ class CTabValSets:
             
             if path.exists(sfAbort):
                 break
+            
+            self.env.targetCsvs.Trace(self.env.devMap, s)
             
         self.score /= n
         self.csv.AddLastItem(self.score)
@@ -222,8 +236,7 @@ class CTabValSets:
                 self.SaveResults()
                 print('Aborting...')
                 break   
-        
-    
+
 def main():
     print('*** Test training of tab groupss')
     sets = CTabValSets()
@@ -231,8 +244,6 @@ def main():
     sets.ShortPrint()
     sets.FirstStep()
     sets.Train(50)
-    
-    
     
 if __name__ == '__main__':
     main()

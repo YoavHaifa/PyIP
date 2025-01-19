@@ -22,7 +22,7 @@ minPerRadius = 300
 maxPerRadius = 300
 nImages = 280
 
-nSamplesPerRadius = 48
+nSamplesPerRadius = 256
 
 bTiming = True
 verbosity = 1

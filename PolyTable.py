@@ -243,6 +243,9 @@ class CPolyTable:
     def SetValueLocally(self, iRow, iCol, value):
         self.table[0, iRow, iCol] = value
         
+    def AddDeltaLocally(self, iRow, iCol, delta):
+        self.table[0, iRow, iCol] += delta
+        
     def SetValue(self, iRow, iCol, value):
         self.table[0, iRow, iCol] = value
         self.SaveTable(self.table)   
@@ -352,6 +355,9 @@ class CPolyTables:
         
     def SetValueLocally(self, iTube, iRow, iCol, value):
         self.tables[iTube].SetValueLocally(iRow, iCol, value)
+        
+    def AddDeltaLocally(self, iTube, iRow, iCol, delta):
+        self.tables[iTube].AddDeltaLocally(iRow, iCol, delta)
         
     def SetValue(self, iTube, iRow, iCol, value):
         self.tables[iTube].SetValue(iRow, iCol, value)

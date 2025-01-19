@@ -12,13 +12,13 @@ debug = 0
 class CCsvLog():
     """
     """
-    def __init__(self, sfName, sTitle):
+    def __init__(self, sfName, sTitle, sSubDir=None):
         """
         """
         self.count = 0
         self.nElements = sTitle.count(',') + 1
         self.nInCurLine = 0
-        self.sfName = Config.LogFileName(sfName)
+        self.sfName = Config.LogFileName(sfName, sSubDir)
         self.nWarnings = 0
         self.nExternalWarnings = 0
         self.sExternalWarning = ''

@@ -32,6 +32,9 @@ sfAbort = GetAbortFileName()
 firstStepAmplitude = 0.001
 LRFraction = 0.08
 
+bUsePosGradOnly = False
+nWarnPos = 0
+
 
 sTitle = 'i, delta00, delta01, delta10, delta11, g00, g01, g10, g11'
 sTitle = sTitle + ', iMaxGrad, fullDelta, tabDelta'
@@ -56,7 +59,7 @@ class CTabValue:
         
         self.signature = f't{iTube}_r{self.iRow}_d{self.iDet}_im{self.iIm}_rad{self.iRad}'
         sfName = f'Train_tab_value_{self.signature}.csv'
-        self.csv = CCsvLog(sfName, sTitle)
+        self.csv = CCsvLog(sfName, sTitle, sSubDir='TabVal')
         
         self.prevDev = None
         self.dev = None
@@ -185,10 +188,28 @@ class CTabValue:
         tabGen.SetValueLocally(self.iTube, self.iRow, self.iDet, self.tabValue)
 
     def SetNextStep(self, tabGen):
+        global nWarnPos
         flatGrad = self.grad.view(4)
         sumPos = flatGrad[flatGrad>0].sum().item()
         sumNeg = abs(flatGrad[flatGrad<0].sum().item())
-        if sumPos > sumNeg:
+        if sumPos <= 0:
+            nWarnPos += 1 
+            sWarn = f'<SetNextStep> WARNING-{nWarnPos}: sum of positive gradients is 0!'
+            self.csv.SetExternalWarning(sWarn)
+            if nWarnPos < 100:
+                Log(sWarn)
+                Log(f'For more details see: {self.csv.sfName}')
+            if nWarnPos == 1:
+                print(sWarn)
+            if bUsePosGradOnly:
+                self.bSkippedStep = True
+                self.fullDelta = 0
+                self.delta = 0 
+                self.bStepSelected = True
+                self.iMaxGrad = -1
+                return
+            
+        if sumPos > sumNeg or bUsePosGradOnly:
             self.iMaxGrad = flatGrad.argmax()
         else:
             self.iMaxGrad = flatGrad.argmin()
@@ -260,6 +281,11 @@ class CTabValue:
             s += f' at {sAt}'
         s += f' {val1000:.3f} -> {dev[0,0]:.3f}, {dev[0,1]:.3f}, {dev[1,0]:.3f}, {dev[1,1]:.3f}, score {self.score:.6f}'
         print(s)
+        
+    def Dist2(self, iImage, iRad):
+        dIm = self.iIm - iImage
+        dRad = self.iRad - iRad
+        return dIm*dIm + dRad*dRad
 
 def ReadData(sfName):
     print('<ReadData>', sfName)

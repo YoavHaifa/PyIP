@@ -31,9 +31,9 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 43
-sExp = 'multisets8lines_wide'
-#sExp = 'try'
+iExperiment = 48
+sExp = 'mult8lines_allGrad_LR008'
+sExp = 'try'
 bDeleteOnStart = False
 sBaseDir = ''
 sLogDir = 'd:/Log'
@@ -126,13 +126,16 @@ def OnInitRun():
         print(f'{sRootVolDir=}')
 
     
-def LogFileName(sfName):
+def LogFileName(sfName, sSubDir=None):
     if not bInitialized:
         OnInitRun()
     _, sExt = os.path.splitext(sfName)
     if sExt not in ['.log', '.txt', '.csv']:
         sfName = sfName + '.log'
-    return path.join(sLogDir, sfName)
+    if sSubDir is None:
+        return path.join(sLogDir, sfName)
+    sDir = VerifyJointDir(sLogDir, sSubDir)
+    return path.join(sDir, sfName)
     
 def OpenLog(sfName):
     if len(sLogDir) < 1:
@@ -212,7 +215,7 @@ def WriteVolToFile(vol, sfName, sfType='float'):
     nCols = vol.shape[-1]
     nLines = vol.shape[-2]
     sfName += f'_width{nCols}_height{nLines}'
-    if nCols <= 250 and nLines <= 250:
+    if nCols <= 256 and nLines <= 256:
         sfName += '_zoom2'
     sfName += f'.{sfType}.rvol'
     sfFullName = path.join(sVolDir, sfName)
