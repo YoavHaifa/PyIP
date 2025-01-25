@@ -41,12 +41,33 @@ def tryRandom():
         count[ir] += 1
     print(count)
     print(f'{count.sum()=}')
+    
+def AvoidSmallNumbers(t):
+    minPos = 0.5
+    bPos = t > 0
+    bSmall = t < minPos
+    print(f'{bSmall=}')
+    bSmallPos = torch.logical_and(bPos, bSmall)
+    print(f'{bSmallPos=}')
+    t1 = torch.where(bSmallPos, minPos, t)
+    bNeg = t1 < 0
+    bSmall = t > -minPos
+    bSmallNeg = torch.logical_and(bNeg, bSmall)
+    t2 = torch.where(bSmallNeg, -minPos, t1)
+    return t2
 
+def TryAvoid():
+    t = torch.randn(10)
+    print(t)
+    t = AvoidSmallNumbers(t)
+    print(t)
+    
 def main():
     print('*** Just try')
     #TryRename()
     #TryIndices()
-    tryRandom()
+    #tryRandom()
+    TryAvoid()
     print('Try Finished')
 
 

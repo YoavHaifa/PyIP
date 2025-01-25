@@ -31,7 +31,7 @@ debug = 3
 
 
 sfRoot = 'd:/PolyCalib'
-iExperiment = 48
+iExperiment = 52
 sExp = 'mult8lines_allGrad_LR008'
 sExp = 'try'
 bDeleteOnStart = False
@@ -40,9 +40,8 @@ sLogDir = 'd:/Log'
 sVolDir = ''
 sRootVolDir = ''
 sDevDir = ''
-#sTabDir0 = ''
-#sTabDir1 = ''
 sBestTabsDir = ''
+asSaveTabsDir = ['','']
 bInitialized = False
 
 verbosity = 1
@@ -92,7 +91,7 @@ def SetSpecialVolDir(sSpecialVolDir):
 def OnInitRun():
     global sBaseDir, sLogDir, sVolDir, sDevDir, sRootVolDir
     global sfVolumeNominal, sfVolumeAi, bInitialized
-    global sBestTabsDir, nToEvaluate
+    global sBestTabsDir, nToEvaluate, asSaveTabsDir
     
     if bInitialized:
         return 
@@ -116,6 +115,10 @@ def OnInitRun():
 
     sBestTabsDir = VerifyJointDir(sBaseDir, 'BestTabs')
     VerifyJointDir(sBaseDir, 'Manualy Saved Results')
+    
+    if asSaveTabsDir[0] == '':
+        asSaveTabsDir[0] = VerifyJointDir(sBaseDir, 'Tab0')
+        asSaveTabsDir[1] = VerifyJointDir(sBaseDir, 'Tab1')
     
     if sExp == 'try':
         nToEvaluate = nToEvaluateTry
@@ -200,10 +203,28 @@ def WriteMatrixToFile(matrix, sfName, sfType='float'):
         file.write(npmat.tobytes())
     print('Matrix saved:', sfFullName)
 
+def WriteMatrixSpec(matrix, sfName, sSubDir, sfType='float'):
+    nCols = matrix.shape[-1]
+    nLines = matrix.shape[-2]
+    sfName = sfName + f'_width{nCols}_height{nLines}'
+    if nCols <= 300 and nLines <= 300:
+        sfName += '_zoom2'
+    sfName = sfName + f'.{sfType}.rmat'
+    sDir = VerifyJointDir(sBaseDir, sSubDir)
+    sfFullName = path.join(sDir, sfName)
+    
+    npmat = matrix.numpy()
+    with open (sfFullName, 'wb') as file:
+        file.write(npmat.tobytes())
+    print(f'Matrix {sSubDir} saved:', sfFullName)
+
 def WriteDevToFile(devMap, sfName, sfType='float'):
     nCols = devMap.shape[-1]
     nLines = devMap.shape[-2]
-    sfName = sfName + f'_width{nCols}_height{nLines}.{sfType}.rmat'
+    sfName = sfName + f'_width{nCols}_height{nLines}'
+    if nCols <= 300 and nLines <= 300:
+        sfName += '_zoom2'
+    sfName = sfName + f'.{sfType}.rmat'
     sfFullName = path.join(sDevDir, sfName)
     
     npmat = devMap.numpy()
@@ -215,7 +236,7 @@ def WriteVolToFile(vol, sfName, sfType='float'):
     nCols = vol.shape[-1]
     nLines = vol.shape[-2]
     sfName += f'_width{nCols}_height{nLines}'
-    if nCols <= 256 and nLines <= 256:
+    if nCols <= 300 and nLines <= 300:
         sfName += '_zoom2'
     sfName += f'.{sfType}.rvol'
     sfFullName = path.join(sVolDir, sfName)

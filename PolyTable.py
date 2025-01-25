@@ -32,7 +32,7 @@ sDebugSaveDir = ''
 
 MIN_DELTA = 0.05
 
-verbosity = 1
+verbosity = 2
 
 class CPolyTable:
     """
@@ -125,6 +125,14 @@ class CPolyTable:
             print('Poly Table Saved:', sfName)
 
     def Save(self, sfName=None):
+        self.SaveTable(self.table, sfName)
+        
+    def SaveTableAt(self, sAt):
+        sDir = Config.asSaveTabsDir[self.iXrt]
+        if sDir == '':
+            return
+        sfName = f'PolyTab_tube{self.iXrt}_width{nDetectors}_height{nRows}_{sAt}.float.rtab'
+        sfName = path.join(sDir, sfName)
         self.SaveTable(self.table, sfName)
 
     def Restore(self):
@@ -249,6 +257,10 @@ class CPolyTable:
     def SetValue(self, iRow, iCol, value):
         self.table[0, iRow, iCol] = value
         self.SaveTable(self.table)   
+        
+    def AddDeltaToTable(self, deltaTab):
+        self.table = self.table + deltaTab
+        self.SaveTable(self.table)   
 
 class CPolyTables:
     """
@@ -365,33 +377,16 @@ class CPolyTables:
     def SaveTable(self, iTube):
         self.tables[iTube].Save()
         
-"""            
-    def SaveDebug(self, iXrt):
-        if iXrt == 0:
-            iStep = self.nTrySteps0
-        else:
-            iStep = self.nTrySteps1
-        sfName = f'Poly_XRT{iXrt}_step{iStep}_width{nDetectors}_height{nRows}.float.bin'
-        self.SaveAside(iXrt, sfName)
-            
-    def SaveBest(self, sfName):
-        sfName = path.join(Config.sBestTabsDir, sfName)
-        self.SaveTable(self.tmpTable, sfName)
-            
-    def SaveAside(self, iXrt, sfName):
-        if iXrt == 0:
-            sfName = path.join(Config.sTabDir0, sfName)
-            self.SaveTable(self.table0, sfName)
-        else:
-            sfName = path.join(Config.sTabDir1, sfName)
-            self.SaveTable(self.table1, sfName)
-    
-    def RestoreTable(self, iXrt):
-        if iXrt == 0:
-            self.SaveTable(self.table0, sfAiTab0)
-        else:
-            self.SaveTable(self.table1, sfAiTab1)
-        """
+    def AddDeltaToTable(self, iTube, deltaTab):
+        self.tables[iTube].AddDeltaToTable(deltaTab)
+ 
+    def SaveTableAt(self, iTube, sAt):
+        self.tables[iTube].SaveTableAt(sAt)
+
+    def SaveTablesAt(self, sAt):
+        for table in self.tables:
+            table.SaveTableAt(sAt)
+       
 
 def TestSingleTable():
     print('*** Check Poly Table Class')

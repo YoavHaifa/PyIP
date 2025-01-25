@@ -95,6 +95,11 @@ class CTrainEnv:
         self.SaveDevMap(sAt)
         self.SaveVolume(sAt)
         
+    def SaveAll(self, sAt):
+        self.tableGenerator.SaveTablesAt(sAt)
+        self.SaveDevMap(sAt)
+        self.SaveVolume(sAt)
+        
     def KeepLastResultsForFutureSave(self, sAt):
         self.sKeptAt = sAt
         self.keptDevMap = self.devMap.clone()
